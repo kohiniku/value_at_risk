@@ -1,0 +1,42 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    env_file:
+      - .env
+    environment:
+      APP_NAME: ${APP_NAME:-Value at Risk API}
+      API_V1_STR: ${API_V1_STR:-/api/v1}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
+      PROXY_URL: ${PROXY_URL:-}
+      NO_PROXY: ${NO_PROXY:-}
+      DATABASE_URL: ${DATABASE_URL:-sqlite:///./var_demo.db}
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api/v1}
+        NEXT_PUBLIC_NEWS_LIMIT: ${NEXT_PUBLIC_NEWS_LIMIT:-5}
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api/v1}
+      NEXT_PUBLIC_NEWS_LIMIT: ${NEXT_PUBLIC_NEWS_LIMIT:-5}
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  nginx:
+    image: nginx
+    depends_on:
+      - frontend
+      - backend
+    volumes:
+      - ./infra/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "80:80"
+    restart: unless-stopped
