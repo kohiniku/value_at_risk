@@ -45,4 +45,4 @@ docker compose up frontend backend nginx
 
 This runs `pnpm dev` inside the container and proxies traffic through nginx on port `80`, so the browser experience matches production URLs while code changes apply instantly. Dependencies live in the named volume `value_at_risk_frontend_node_modules`; remove it with `docker compose down -v` if you need a clean install.
 
-Need to change the published ports? Update `BACKEND_PORT`, `FRONTEND_PORT`, and `NGINX_PORT` inside `.env` and rerun `docker compose up …`—the compose file references those variables everywhere (dev server args, exposed ports, and nginx binding).
+Need to change the published ports? Update `NGINX_PORT` inside `.env` and rerun `docker compose up …`—the compose file references those variables everywhere (dev server args, exposed ports, and nginx binding).

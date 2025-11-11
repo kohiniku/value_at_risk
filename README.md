@@ -40,7 +40,7 @@ On subsequent edits just refresh the browser (backend uses `uvicorn --reload`, f
 
 > When running behind nginx the default `NEXT_PUBLIC_API_BASE_URL=/api/v1` already routes requests through the reverse proxy. Override it (e.g. `http://localhost:8000/api/v1`) only when bypassing nginx during local debugging.
 >
-> Adjust `BACKEND_PORT`, `FRONTEND_PORT`, and `NGINX_PORT` in `.env` if you need to remap local ports—the compose file reads those values everywhere (container command, exposed ports, and reverse proxy).
+> Adjust `NGINX_PORT` in `.env` if you need to remap local ports—the compose file reads those values everywhere (container command, exposed ports, and reverse proxy).
 
 Node dependencies are stored inside the named volume `value_at_risk_frontend_node_modules`. Remove it if you need a clean install:
 
