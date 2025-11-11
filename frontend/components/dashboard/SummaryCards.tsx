@@ -1,6 +1,6 @@
 import { Card } from '@/components/ui/card'
 import clsx from 'clsx'
-import type { MetricSummary } from '@/lib/sample-data'
+import type { MetricSummary } from '@/lib/metrics'
 
 interface SummaryCardsProps {
   metrics: MetricSummary[]

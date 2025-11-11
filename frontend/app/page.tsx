@@ -10,14 +10,7 @@ import { VarContributionChart } from '@/components/dashboard/VarContributionChar
 import { AssetDetailsTable } from '@/components/dashboard/AssetDetailsTable'
 import { TimeseriesControls } from '@/components/dashboard/TimeseriesControls'
 import { ScenarioDistributionChart } from '@/components/dashboard/ScenarioDistributionChart'
-import {
-  buildMetrics,
-  buildSampleScenarioDistribution,
-  buildSampleSeries,
-  sampleNews,
-  sampleSummary,
-  sampleDates,
-} from '@/lib/sample-data'
+import { buildMetrics } from '@/lib/metrics'
 import type { NewsItem, SummaryResponse, TimeSeriesResponse } from '@/types/var'
 import { AGGREGATE_RIC } from '@/types/var'
 import type { ScenarioDistributionResponse } from '@/types/var'
@@ -27,27 +20,23 @@ const NEWS_LIMIT = Number.parseInt(process.env.NEXT_PUBLIC_NEWS_LIMIT ?? '5', 10
 const REFRESH_INTERVAL_MS = Number.parseInt(process.env.NEXT_PUBLIC_REFRESH_INTERVAL_MS ?? '60000', 10)
 
 export default function DashboardPage() {
-  const [summary, setSummary] = useState<SummaryResponse>(sampleSummary)
-  const [availableDates, setAvailableDates] = useState<string[]>(sampleDates)
-  const [selectedDate, setSelectedDate] = useState(sampleSummary.as_of)
+  const [summary, setSummary] = useState<SummaryResponse | null>(null)
+  const [summaryError, setSummaryError] = useState<string | null>(null)
+  const [availableDates, setAvailableDates] = useState<string[]>([])
+  const [selectedDate, setSelectedDate] = useState('')
   const [selectedRic, setSelectedRic] = useState(AGGREGATE_RIC)
   const [windowDays, setWindowDays] = useState(30)
-  const [timeseries, setTimeseries] = useState<TimeSeriesResponse>(
-    buildSampleSeries(AGGREGATE_RIC, windowDays),
-  )
-  const [news, setNews] = useState<NewsItem[]>(sampleNews)
+  const [timeseries, setTimeseries] = useState<TimeSeriesResponse | null>(null)
+  const [timeseriesError, setTimeseriesError] = useState<string | null>(null)
+  const [news, setNews] = useState<NewsItem[]>([])
   const [loadingNews, setLoadingNews] = useState(true)
   const [scenarioRic, setScenarioRic] = useState(AGGREGATE_RIC)
-  const [scenarioValues, setScenarioValues] = useState<number[]>(
-    buildSampleScenarioDistribution().values,
-  )
+  const [scenarioValues, setScenarioValues] = useState<number[]>([])
+  const [scenarioError, setScenarioError] = useState<string | null>(null)
 
   const fetchSummary = useCallback(async () => {
-    const url = new URL(`${API_BASE}/var/summary`)
-    if (selectedDate) {
-      url.searchParams.set('as_of', selectedDate)
-    }
-    const response = await fetch(url, { cache: 'no-store' })
+    const search = selectedDate ? `?as_of=${encodeURIComponent(selectedDate)}` : ''
+    const response = await fetch(`${API_BASE}/var/summary${search}`, { cache: 'no-store' })
     if (!response.ok) {
       throw new Error(`Failed summary request: ${response.status}`)
     }
@@ -63,6 +52,10 @@ export default function DashboardPage() {
           return
         }
         setSummary(payload)
+        setSummaryError(null)
+        if (!selectedDate) {
+          setSelectedDate(payload.as_of)
+        }
         setSelectedRic((prev) => {
           if (prev === AGGREGATE_RIC) {
             return prev
@@ -73,7 +66,11 @@ export default function DashboardPage() {
           return payload.assets[0]?.ric ?? AGGREGATE_RIC
         })
       } catch (error) {
-        console.warn('サマリー取得に失敗したためサンプルデータにフォールバックします', error)
+        console.error('サマリー取得に失敗しました', error)
+        if (active) {
+          setSummaryError('サマリーデータの取得に失敗しました')
+          setSummary(null)
+        }
       }
     }
 
@@ -84,7 +81,7 @@ export default function DashboardPage() {
       active = false
       clearInterval(intervalId)
     }
-  }, [fetchSummary])
+  }, [fetchSummary, selectedDate])
 
   useEffect(() => {
     let cancelled = false
@@ -100,7 +97,7 @@ export default function DashboardPage() {
           setSelectedDate((prev) => (prev && payload.includes(prev) ? prev : payload[0]))
         }
       } catch (error) {
-        console.warn('基準日リスト取得に失敗したためフォールバックを使用します', error)
+        console.error('基準日リスト取得に失敗しました', error)
       }
     }
 
@@ -113,13 +110,13 @@ export default function DashboardPage() {
 
   // ensure selected RIC remains valid when summary updates
   useEffect(() => {
-    if (selectedRic === AGGREGATE_RIC) {
+    if (!summary || selectedRic === AGGREGATE_RIC) {
       return
     }
     if (!summary.assets.some((asset) => asset.ric === selectedRic) && summary.assets.length) {
       setSelectedRic(summary.assets[0].ric)
     }
-  }, [selectedRic, summary.assets])
+  }, [selectedRic, summary])
 
   const fetchSeries = useCallback(async () => {
     const response = await fetch(
@@ -139,11 +136,13 @@ export default function DashboardPage() {
         const payload = await fetchSeries()
         if (active) {
           setTimeseries(payload)
+          setTimeseriesError(null)
         }
       } catch (error) {
-        console.warn('時系列取得に失敗したためサンプルデータにフォールバックします', error)
         if (active) {
-          setTimeseries(buildSampleSeries(selectedRic, windowDays))
+          console.error('時系列取得に失敗しました', error)
+          setTimeseries(null)
+          setTimeseriesError('時系列データの取得に失敗しました')
         }
       }
     }
@@ -174,9 +173,9 @@ export default function DashboardPage() {
           setNews(payload)
         }
       } catch (error) {
-        console.warn('Using fallback news data', error)
         if (!cancelled) {
-          setNews(sampleNews)
+          console.error('ニュース取得に失敗しました', error)
+          setNews([])
         }
       } finally {
         if (!cancelled) {
@@ -192,14 +191,14 @@ export default function DashboardPage() {
     }
   }, [])
 
-  const metrics = useMemo(() => buildMetrics(summary), [summary])
-  const commonAssetOptions = useMemo(
-    () => [
-      { value: AGGREGATE_RIC, label: '全資産合算' },
-      ...summary.assets.map((asset) => ({ value: asset.ric, label: asset.name })),
-    ],
-    [summary.assets],
-  )
+  const metrics = useMemo(() => (summary ? buildMetrics(summary) : []), [summary])
+  const commonAssetOptions = useMemo(() => {
+    const base = [{ value: AGGREGATE_RIC, label: '全資産合算' }]
+    if (!summary) {
+      return base
+    }
+    return [...base, ...summary.assets.map((asset) => ({ value: asset.ric, label: asset.name }))]
+  }, [summary])
   const scenarioOptions = commonAssetOptions
 
   const handleDateChange = useCallback((date: string) => {
@@ -226,10 +225,13 @@ export default function DashboardPage() {
   }, [scenarioRic])
 
   useEffect(() => {
+    if (!summary) {
+      return
+    }
     if (scenarioRic !== AGGREGATE_RIC && !summary.assets.some((asset) => asset.ric === scenarioRic)) {
       setScenarioRic(summary.assets[0]?.ric ?? AGGREGATE_RIC)
     }
-  }, [scenarioRic, summary.assets])
+  }, [scenarioRic, summary])
 
   useEffect(() => {
     let active = true
@@ -238,11 +240,13 @@ export default function DashboardPage() {
         const payload = await fetchScenarioDistribution()
         if (active) {
           setScenarioValues(payload.values)
+          setScenarioError(null)
         }
       } catch (error) {
-        console.warn('シナリオ分布取得に失敗したためサンプルデータを利用します', error)
         if (active) {
-          setScenarioValues(buildSampleScenarioDistribution(scenarioRic).values)
+          console.error('シナリオ分布取得に失敗しました', error)
+          setScenarioValues([])
+          setScenarioError('シナリオPL分布の取得に失敗しました')
         }
       }
     }
@@ -255,11 +259,27 @@ export default function DashboardPage() {
     }
   }, [fetchScenarioDistribution, scenarioRic])
 
+  if (!summary) {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <AppHeader />
+        <main className="mx-auto max-w-6xl px-6 py-8 space-y-4">
+          <p className="text-sm text-muted-foreground">データを取得しています...</p>
+          {summaryError && <p className="text-sm text-rose-400">{summaryError}</p>}
+        </main>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <AppHeader />
       <main className="mx-auto max-w-6xl px-6 py-8 space-y-8">
-        <FiltersBar dates={availableDates} selectedDate={selectedDate} onDateChange={handleDateChange} />
+        <FiltersBar
+          dates={availableDates}
+          selectedDate={selectedDate || summary.as_of}
+          onDateChange={handleDateChange}
+        />
 
         <SummaryCards metrics={metrics} />
 
@@ -280,7 +300,8 @@ export default function DashboardPage() {
               onAssetChange={handleAssetChange}
               onWindowChange={handleWindowChange}
             />
-            <VarChartCard points={timeseries.points} key={selectedRic} />
+            <VarChartCard points={timeseries?.points ?? []} key={selectedRic} />
+            {timeseriesError && <p className="text-xs text-rose-400">{timeseriesError}</p>}
           </div>
           <div className="space-y-6">
             <NewsPanel items={news} loading={loadingNews} />
@@ -293,6 +314,7 @@ export default function DashboardPage() {
           onRicChange={(ric) => setScenarioRic(ric)}
           options={scenarioOptions}
         />
+        {scenarioError && <p className="text-xs text-rose-400">{scenarioError}</p>}
       </main>
     </div>
   )
