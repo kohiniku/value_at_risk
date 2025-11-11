@@ -33,9 +33,9 @@ export function VarChartCard({ points }: VarChartCardProps) {
         background: 'transparent',
       },
       stroke: {
-        curve: 'smooth',
+        // curve: 'smooth',
         width: 3,
-        colors: ['#000000'],
+        // colors: ['#000000'],
       },
       grid: {
         borderColor: '#1E2743',
@@ -61,13 +61,13 @@ export function VarChartCard({ points }: VarChartCardProps) {
           formatter: (value?: number) => (typeof value === 'number' ? value.toFixed(2) : ''),
         },
       },
-      colors: ['#000000'],
-      fill: {
-        type: 'solid',
-        opacity: 0,
-      },
+      // colors: ['#000000'],
+      // fill: {
+      //   type: 'solid',
+      //   opacity: 0,
+      // },
       markers: {
-        size: 0,
+        size: 5,
       },
     }),
     [],

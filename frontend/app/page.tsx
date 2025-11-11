@@ -22,7 +22,7 @@ import type { NewsItem, SummaryResponse, TimeSeriesResponse } from '@/types/var'
 import { AGGREGATE_RIC } from '@/types/var'
 import type { ScenarioDistributionResponse } from '@/types/var'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000/api/v1'
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? '/api/v1'
 const NEWS_LIMIT = Number.parseInt(process.env.NEXT_PUBLIC_NEWS_LIMIT ?? '5', 10)
 const REFRESH_INTERVAL_MS = Number.parseInt(process.env.NEXT_PUBLIC_REFRESH_INTERVAL_MS ?? '60000', 10)
 

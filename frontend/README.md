@@ -10,8 +10,8 @@ pnpm install
 pnpm dev
 ```
 
-By default the app queries `NEXT_PUBLIC_API_BASE_URL` (see `.env.example`). If the API is offline the UI falls back to sample data so you can still demo the flow.
-When running under Docker Compose the env var should be set to `/api/v1` so browser requests are routed through the nginx gateway.
+By default the app queries `NEXT_PUBLIC_API_BASE_URL` (see `.env.example`, default `/api/v1`). If the API is offline the UI falls back to sample data so you can still demo the flow.
+When running under Docker Compose the `/api/v1` value keeps browser requests inside the nginx gateway; override it (e.g. `http://localhost:8000/api/v1`) only when you intentionally bypass nginx.
 
 ### Scripts
 
@@ -37,8 +37,10 @@ Client components fetch from the API using the public env vars. Requests gracefu
 
 ## Docker
 
-The top-level `docker-compose.yml` builds the Next.js image and exposes it on port `3000` (with nginx serving traffic on port `80`). Rebuild with:
+For a containerised dev loop (hot reload + bind mount) use the root compose file:
 
 ```bash
-docker compose build frontend
+docker compose up frontend backend nginx
 ```
+
+This runs `pnpm dev` inside the container and proxies traffic through nginx on port `80`, so the browser experience matches production URLs while code changes apply instantly. Dependencies live in the named volume `value_at_risk_frontend_node_modules`; remove it with `docker compose down -v` if you need a clean install.

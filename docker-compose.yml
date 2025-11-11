@@ -2,6 +2,16 @@ services:
   backend:
     build:
       context: ./backend
+    command:
+      - uv
+      - run
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --reload
     env_file:
       - .env
     environment:
@@ -13,6 +23,9 @@ services:
       DATABASE_URL: ${DATABASE_URL:-sqlite:///./var_demo.db}
     ports:
       - "8000:8000"
+    volumes:
+      - ./backend/app:/app/app
+      - ./backend/tests:/app/tests
     restart: unless-stopped
 
   frontend:
@@ -22,12 +35,24 @@ services:
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api/v1}
         NEXT_PUBLIC_NEWS_LIMIT: ${NEXT_PUBLIC_NEWS_LIMIT:-5}
     environment:
+      NODE_ENV: development
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api/v1}
       NEXT_PUBLIC_NEWS_LIMIT: ${NEXT_PUBLIC_NEWS_LIMIT:-5}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        if [ ! -d node_modules ]; then
+          pnpm install --prefer-offline
+        fi
+        pnpm dev --hostname 0.0.0.0 --port 3000
     depends_on:
       - backend
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
     restart: unless-stopped
 
   nginx:
@@ -40,3 +65,6 @@ services:
     ports:
       - "80:80"
     restart: unless-stopped
+
+volumes:
+  frontend_node_modules:

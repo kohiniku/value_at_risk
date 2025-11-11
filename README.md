@@ -25,20 +25,26 @@ Both layers use mocked data so you can iterate on the UI before wiring real data
 
 ### Containerised setup
 
-Alternatively run the full stack (backend, frontend, nginx reverse proxy) via Docker Compose:
+Alternatively run the full stack (backend, frontend, nginx reverse proxy) via Docker Compose. The default compose file now mounts your local source directories into the containers so code changes are reflected immediately without rebuilding images:
 
 ```bash
-docker compose up --build
+# first run installs dependencies and seeds the DB
+docker compose up backend frontend nginx
 ```
 
-This exposes:
+On subsequent edits just refresh the browser (backend uses `uvicorn --reload`, frontend runs `pnpm dev`). The command exposes:
 
 - http://localhost:80 – Next.js frontend served through nginx
 - http://localhost:80/api/v1 – FastAPI endpoints proxied by nginx
-- http://localhost:3000 – Next.js service (bypassing nginx)
-- http://localhost:8000 – FastAPI service (bypassing nginx)
+- http://localhost:8000 – FastAPI service (bypassing nginx, useful for debugging)
 
-> For the proxied setup, set `NEXT_PUBLIC_API_BASE_URL=/api/v1` so the browser uses the nginx gateway.
+> When running behind nginx the default `NEXT_PUBLIC_API_BASE_URL=/api/v1` already routes requests through the reverse proxy. Override it (e.g. `http://localhost:8000/api/v1`) only when bypassing nginx during local debugging.
+
+Node dependencies are stored inside the named volume `value_at_risk_frontend_node_modules`. Remove it if you need a clean install:
+
+```bash
+docker compose down -v
+```
 
 ## Testing
 
