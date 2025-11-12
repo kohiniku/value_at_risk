@@ -4,6 +4,9 @@
   "private": true,
   "packageManager": "pnpm@8.15.0",
   "scripts": {
+    "predev": "node scripts/ensure-modules.cjs",
+    "prebuild": "node scripts/ensure-modules.cjs",
+    "prestart": "node scripts/ensure-modules.cjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
