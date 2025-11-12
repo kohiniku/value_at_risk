@@ -1,8 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppHeader } from '@/components/AppHeader'
-import { FiltersBar } from '@/components/dashboard/FiltersBar'
 import { NewsPanel } from '@/components/dashboard/NewsPanel'
 import { SummaryCards } from '@/components/dashboard/SummaryCards'
 import { VarChartCard } from '@/components/dashboard/VarChartCard'
@@ -14,6 +13,7 @@ import { buildMetrics } from '@/lib/metrics'
 import type { NewsItem, SummaryResponse, TimeSeriesResponse } from '@/types/var'
 import { AGGREGATE_RIC } from '@/types/var'
 import type { ScenarioDistributionResponse } from '@/types/var'
+import { usePdfExport } from '@/hooks/usePdfExport'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? '/api/v1'
 const NEWS_LIMIT = Number.parseInt(process.env.NEXT_PUBLIC_NEWS_LIMIT ?? '5', 10)
@@ -33,6 +33,10 @@ export default function DashboardPage() {
   const [scenarioRic, setScenarioRic] = useState(AGGREGATE_RIC)
   const [scenarioValues, setScenarioValues] = useState<number[]>([])
   const [scenarioError, setScenarioError] = useState<string | null>(null)
+  const [pdfError, setPdfError] = useState<string | null>(null)
+  const [isExporting, setIsExporting] = useState(false)
+  const dashboardRef = useRef<HTMLDivElement>(null)
+  const exportPdf = usePdfExport()
 
   const fetchSummary = useCallback(async () => {
     const search = selectedDate ? `?as_of=${encodeURIComponent(selectedDate)}` : ''
@@ -200,6 +204,25 @@ export default function DashboardPage() {
     return [...base, ...summary.assets.map((asset) => ({ value: asset.ric, label: asset.name }))]
   }, [summary])
   const scenarioOptions = commonAssetOptions
+  const handleExportPdf = useCallback(async () => {
+    if (!summary) {
+      return
+    }
+    if (!dashboardRef.current) {
+      setPdfError('出力対象が見つかりませんでした')
+      return
+    }
+    setPdfError(null)
+    setIsExporting(true)
+    try {
+      await exportPdf(dashboardRef.current, `var-dashboard-${summary.as_of}.pdf`)
+    } catch (error) {
+      console.error('PDF出力に失敗しました', error)
+      setPdfError('PDFの生成に失敗しました。時間をおいて再試行してください。')
+    } finally {
+      setIsExporting(false)
+    }
+  }, [exportPdf, summary])
 
   const handleDateChange = useCallback((date: string) => {
     setSelectedDate(date)
@@ -261,8 +284,12 @@ export default function DashboardPage() {
 
   if (!summary) {
     return (
-      <div className="min-h-screen bg-background text-foreground">
-        <AppHeader />
+      <div ref={dashboardRef} className="min-h-screen bg-background text-foreground">
+        <AppHeader
+          dates={availableDates}
+          selectedDate={selectedDate || summary?.as_of || ''}
+          onDateChange={handleDateChange}
+        />
         <main className="mx-auto max-w-6xl px-6 py-8 space-y-4">
           <p className="text-sm text-muted-foreground">データを取得しています...</p>
           {summaryError && <p className="text-sm text-rose-400">{summaryError}</p>}
@@ -272,15 +299,16 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <AppHeader />
+    <div ref={dashboardRef} className="min-h-screen bg-background text-foreground">
+      <AppHeader
+        dates={availableDates}
+        selectedDate={selectedDate || summary.as_of}
+        onDateChange={handleDateChange}
+        onExportPdf={handleExportPdf}
+        exporting={isExporting}
+      />
       <main className="mx-auto max-w-6xl px-6 py-8 space-y-8">
-        <FiltersBar
-          dates={availableDates}
-          selectedDate={selectedDate || summary.as_of}
-          onDateChange={handleDateChange}
-        />
-
+        {pdfError && <p className="text-sm text-rose-400">{pdfError}</p>}
         <SummaryCards metrics={metrics} />
 
         <VarContributionChart
