@@ -1,6 +1,16 @@
 import type { Config } from 'tailwindcss'
 import defaultTheme from 'tailwindcss/defaultTheme'
 
+const resolveOptionalPlugin = (moduleName: string) => {
+	try {
+		// eslint-disable-next-line @typescript-eslint/no-var-requires
+		return require(moduleName)
+	} catch (error) {
+		console.warn(`[tailwind-config] optional plugin "${moduleName}" was not found. Skipping.`)
+		return () => {}
+	}
+}
+
 const config: Config = {
   darkMode: ['class'],
   content: [
@@ -73,7 +83,7 @@ const config: Config = {
   		}
   	}
   },
-  plugins: [require('@tailwindcss/forms'), require("tailwindcss-animate")]
+	plugins: [require('@tailwindcss/forms'), resolveOptionalPlugin('tailwindcss-animate')]
 }
 
 export default config
