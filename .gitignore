@@ -15,3 +15,6 @@ node_modules/
 # Tooling
 *.log
 coverage/
+
+# Codex
+.serena/

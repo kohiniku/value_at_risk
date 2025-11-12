@@ -33,7 +33,7 @@ This file provides guidance for AGENT AI when working with code in this reposito
 - 変動要因4分類（window_drop, window_add, position_change, ranking_shift）はテーブル列と一致させ、寄与度の色も固定。
 
 ## Technology Stack
-- **Frontend**: Next.js (App Router) + Tailwind CSS + ApexCharts。PayloadCMSテーマ構成を踏襲。
+- **Frontend**: Next.js (App Router) + Tailwind CSS + ApexCharts + shadcn/ui コンポーネント。PayloadCMSテーマ構成を踏襲。
 - **Backend**: FastAPI (Python 3.12) + SQLAlchemy ORM。
 - **Package Management**: Pythonは `uv`、Nodeは `pnpm`（開発時はbind mountでホットリロード）。
 - **Database**: SQLite（`DATABASE_URL`）。
