@@ -3,7 +3,8 @@
 import dynamic from 'next/dynamic'
 import { useMemo } from 'react'
 import type { ApexOptions } from 'apexcharts'
-import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import type { Asset } from '@/types/var'
 
 const ApexChart = dynamic(() => import('react-apexcharts'), { ssr: false })
@@ -202,13 +203,26 @@ export function VarContributionChart({
   const diversificationGain = assetTotal - portfolioTotal
 
   return (
-    <Card
-      title="VaR比較：単独資産 vs ポートフォリオ"
-      footer={`分散効果(億円): ${diversificationGain.toFixed(2)} (${diversificationEffect.toFixed(2)})`}
-    >
-      <div className="h-80">
-        <ApexChart type="bar" series={series} options={options} height="100%" />
-      </div>
+    <Card className="flex flex-col">
+      <CardHeader className="pb-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <CardTitle className="text-base">VaR比較：単独資産 vs ポートフォリオ</CardTitle>
+            <p className="text-xs text-muted-foreground">積み上げ棒で個別資産、最終列でポートフォリオを表示</p>
+          </div>
+          <Badge variant="secondary" className="bg-emerald-500/15 text-emerald-400">
+            分散効果 +{diversificationEffect.toFixed(2)}%
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="grow px-0 pb-0">
+        <div className="h-80">
+          <ApexChart type="bar" series={series} options={options} height="100%" />
+        </div>
+      </CardContent>
+      <CardFooter className="text-sm text-muted-foreground">
+        分散効果(億円): <span className="ml-1 font-semibold text-emerald-400">+{diversificationGain.toFixed(2)}</span>
+      </CardFooter>
     </Card>
   )
 }

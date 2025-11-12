@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic'
 import { useMemo } from 'react'
 import type { ApexOptions } from 'apexcharts'
-import { Card } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { TimeSeriesPoint } from '@/types/var'
 
 const ApexChart = dynamic(() => import('react-apexcharts'), { ssr: false })
@@ -13,6 +13,7 @@ interface VarChartCardProps {
 }
 
 export function VarChartCard({ points }: VarChartCardProps) {
+  const latestValue = points.at(-1)?.value ?? null
   const series = useMemo(
     () => [
       {
@@ -74,10 +75,18 @@ export function VarChartCard({ points }: VarChartCardProps) {
   )
 
   return (
-    <Card title="VaR推移">
-      <div className="h-72">
-        <ApexChart type="line" options={options} series={series} height="100%" />
-      </div>
+    <Card>
+      <CardHeader className="pb-0">
+        <CardTitle className="text-base">VaR推移</CardTitle>
+        <p className="text-xs text-muted-foreground">
+          {latestValue !== null ? `最新値: ${latestValue.toFixed(2)} 億円` : 'データを取得しています'}
+        </p>
+      </CardHeader>
+      <CardContent className="px-0 pb-0">
+        <div className="h-72">
+          <ApexChart type="line" options={options} series={series} height="100%" />
+        </div>
+      </CardContent>
     </Card>
   )
 }

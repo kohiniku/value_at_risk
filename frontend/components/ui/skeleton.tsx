@@ -1,16 +1,15 @@
-import clsx from 'clsx'
-import type { HTMLAttributes } from 'react'
+import { cn } from "@/lib/utils"
 
-interface SkeletonProps extends HTMLAttributes<HTMLDivElement> {
-  widthClass?: string
-  heightClass?: string
-}
-
-export function Skeleton({ widthClass = 'w-full', heightClass = 'h-6', className, ...props }: SkeletonProps) {
+function Skeleton({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={clsx('animate-pulse rounded-md bg-muted/40', widthClass, heightClass, className)}
+      className={cn("animate-pulse rounded-md bg-primary/10", className)}
       {...props}
     />
   )
 }
+
+export { Skeleton }

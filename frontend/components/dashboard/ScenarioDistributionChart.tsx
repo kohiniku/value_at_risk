@@ -3,8 +3,15 @@
 import dynamic from 'next/dynamic'
 import { useMemo } from 'react'
 import type { ApexOptions } from 'apexcharts'
-import { Card } from '@/components/ui/card'
-import { Select } from '@/components/ui/select'
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { SCENARIO_WINDOW } from '@/types/var'
 
 const ApexChart = dynamic(() => import('react-apexcharts'), { ssr: false })
@@ -94,27 +101,37 @@ export function ScenarioDistributionChart({ values, selectedRic, onRicChange, op
     [categories],
   )
 
-  const footer = `シナリオ件数: ${values.length}件 / ${SCENARIO_WINDOW}件`
-
   return (
-    <Card
-      title="シナリオPL分布 (直近800日)"
-      actions={
-        <div className="min-w-[200px]">
-          <Select label="対象資産" value={selectedRic} onChange={(event) => onRicChange(event.target.value)}>
-            {options.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
+    <Card className="flex flex-col">
+      <CardHeader className="gap-4 pb-2 md:flex-row md:items-center md:justify-between">
+        <div>
+          <CardTitle className="text-base">シナリオPL分布 (直近800日)</CardTitle>
+          <p className="text-xs text-muted-foreground">800本のシナリオPLを24本のビンに集計したヒストグラム</p>
+        </div>
+        <div className="flex w-full flex-col gap-1 md:w-auto">
+          <Label className="text-xs uppercase tracking-wide text-muted-foreground">対象資産</Label>
+          <Select value={selectedRic} onValueChange={onRicChange}>
+            <SelectTrigger className="w-full md:w-[220px]">
+              <SelectValue placeholder="資産を選択" />
+            </SelectTrigger>
+            <SelectContent>
+              {options.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </div>
-      }
-      footer={footer}
-    >
-      <div className="h-96">
-        <ApexChart type="bar" options={optionsConfig} series={series} height="100%" />
-      </div>
+      </CardHeader>
+      <CardContent className="px-0 pb-0">
+        <div className="h-96">
+          <ApexChart type="bar" options={optionsConfig} series={series} height="100%" />
+        </div>
+      </CardContent>
+      <CardFooter className="text-sm text-muted-foreground">
+        シナリオ件数: {values.length}件 / {SCENARIO_WINDOW}件
+      </CardFooter>
     </Card>
   )
 }

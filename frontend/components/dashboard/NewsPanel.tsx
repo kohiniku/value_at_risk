@@ -1,6 +1,8 @@
 'use client'
 
-import { Card } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { NewsItem } from '@/types/var'
 
@@ -16,29 +18,39 @@ export function NewsPanel({ items, loading = false }: NewsPanelProps) {
   }
 
   return (
-    <Card title="関連ニュース">
-      {loading ? (
-        <div className="space-y-3">
-          <Skeleton heightClass="h-6" />
-          <Skeleton heightClass="h-6" />
-          <Skeleton heightClass="h-6" />
-        </div>
-      ) : (
-        <ul className="space-y-4">
-          {items.map((item) => (
-            <li key={item.id} className="border-b border-border/60 pb-3 last:border-none">
-              <p className="text-sm font-semibold">{item.headline}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{formatMeta(item)}</p>
-              {item.summary && (
-                <p className="mt-2 text-sm text-muted-foreground">{item.summary}</p>
+    <Card className="h-full">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">関連ニュース</CardTitle>
+        <p className="text-xs text-muted-foreground">VaR変動と関係するトピックを自動でピックアップします。</p>
+      </CardHeader>
+      <CardContent className="px-0 pb-0">
+        {loading ? (
+          <div className="space-y-3 px-6 pb-6">
+            {[0, 1, 2].map((item) => (
+              <div key={item} className="space-y-2">
+                <Skeleton className="h-5 w-3/4" />
+                <Skeleton className="h-4 w-2/3" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <ScrollArea className="h-[360px] px-6">
+            <div className="space-y-4 py-2">
+              {items.length === 0 && (
+                <p className="text-sm text-muted-foreground">表示できるニュースはありません。</p>
               )}
-            </li>
-          ))}
-          {items.length === 0 && (
-            <li className="text-sm text-muted-foreground">表示できるニュースはありません。</li>
-          )}
-        </ul>
-      )}
+              {items.map((item, index) => (
+                <div key={item.id}>
+                  <p className="text-sm font-semibold text-foreground">{item.headline}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{formatMeta(item)}</p>
+                  {item.summary && <p className="mt-2 text-sm text-muted-foreground">{item.summary}</p>}
+                  {index !== items.length - 1 && <Separator className="mt-4" />}
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        )}
+      </CardContent>
     </Card>
   )
 }

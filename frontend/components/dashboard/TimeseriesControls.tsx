@@ -1,7 +1,14 @@
 'use client'
 
-import { Card } from '@/components/ui/card'
-import { Select } from '@/components/ui/select'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface TimeseriesControlsProps {
   options: { value: string; label: string }[]
@@ -14,20 +21,42 @@ interface TimeseriesControlsProps {
 export function TimeseriesControls({ options, selectedRic, windowDays, onAssetChange, onWindowChange }: TimeseriesControlsProps) {
   return (
     <Card>
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <Select value={selectedRic} label="資産" onChange={(event) => onAssetChange(event.target.value)}>
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </Select>
-        <Select value={String(windowDays)} label="観測日数" onChange={(event) => onWindowChange(Number(event.target.value))}>
-          <option value="14">14日</option>
-          <option value="30">30日</option>
-          <option value="60">60日</option>
-        </Select>
-      </div>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">時系列コントロール</CardTitle>
+        <p className="text-xs text-muted-foreground">資産と観測ウィンドウを切り替えると折れ線グラフを即時更新します。</p>
+      </CardHeader>
+      <CardContent className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="timeseries-asset">資産</Label>
+          <Select value={selectedRic} onValueChange={onAssetChange}>
+            <SelectTrigger id="timeseries-asset">
+              <SelectValue placeholder="資産を選択" />
+            </SelectTrigger>
+            <SelectContent>
+              {options.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="timeseries-window">観測日数</Label>
+          <Select value={String(windowDays)} onValueChange={(value) => onWindowChange(Number(value))}>
+            <SelectTrigger id="timeseries-window">
+              <SelectValue placeholder="観測ウィンドウ" />
+            </SelectTrigger>
+            <SelectContent>
+              {[14, 30, 60, 90].map((days) => (
+                <SelectItem key={days} value={String(days)}>
+                  {days}日
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </CardContent>
     </Card>
   )
 }
