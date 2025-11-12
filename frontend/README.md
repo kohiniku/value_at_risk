@@ -43,6 +43,6 @@ For a containerised dev loop (hot reload + bind mount) use the root compose file
 docker compose up frontend backend nginx
 ```
 
-This runs `pnpm dev` inside the container and proxies traffic through nginx on port `80`, so the browser experience matches production URLs while code changes apply instantly. Dependencies live in the named volume `value_at_risk_frontend_node_modules`; remove it with `docker compose down -v` if you need a clean install.
+This runs `pnpm dev` inside the container and proxies traffic through nginx on port `80`, so the browser experience matches production URLs while code changes apply instantly. The container now executes `pnpm install --prefer-offline --frozen-lockfile` on every start, ensuring newly added dependencies are always present even if the shared `value_at_risk_frontend_node_modules` volume was created earlier. Remove that volume with `docker compose down -v` if you want a completely fresh install.
 
 Need to change the published ports? Update `NGINX_PORT` inside `.env` and rerun `docker compose up …`—the compose file references those variables everywhere (dev server args, exposed ports, and nginx binding).

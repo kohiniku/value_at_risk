@@ -40,9 +40,7 @@ services:
       - /bin/sh
       - -c
       - |
-        if [ ! -d node_modules ]; then
-          pnpm install --prefer-offline
-        fi
+        pnpm install --prefer-offline --frozen-lockfile
         pnpm dev --hostname 0.0.0.0 --port 3000
     depends_on:
       - backend

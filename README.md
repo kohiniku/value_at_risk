@@ -32,7 +32,7 @@ Alternatively run the full stack (backend, frontend, nginx reverse proxy) via Do
 docker compose up backend frontend nginx
 ```
 
-On subsequent edits just refresh the browser (backend uses `uvicorn --reload`, frontend runs `pnpm dev`). The command exposes:
+On every start the frontend container now executes `pnpm install --prefer-offline --frozen-lockfile` before launching Next.js, so any new dependencies (e.g. freshly added icon packs) are linked automatically even when the `frontend_node_modules` volume already exists. After the install completes just refresh the browser (backend uses `uvicorn --reload`, frontend runs `pnpm dev`). The command exposes:
 
 - http://localhost:80 – Next.js frontend served through nginx
 - http://localhost:80/api/v1 – FastAPI endpoints proxied by nginx
@@ -42,7 +42,7 @@ On subsequent edits just refresh the browser (backend uses `uvicorn --reload`, f
 >
 > Adjust `NGINX_PORT` in `.env` if you need to remap local ports—the compose file reads those values everywhere (container command, exposed ports, and reverse proxy).
 
-Node dependencies are stored inside the named volume `value_at_risk_frontend_node_modules`. Remove it if you need a clean install:
+Node dependencies are stored inside the named volume `value_at_risk_frontend_node_modules`. Remove it if you need a clean install or want to reclaim space:
 
 ```bash
 docker compose down -v
