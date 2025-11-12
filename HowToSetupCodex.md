@@ -61,4 +61,13 @@ startup_timeout_sec = 30
 command = "npx"
 args = ["-y", "next-devtools-mcp@latest"]
 startup_timeout_sec = 30
+
+[mcp_servers.ultracite]
+command = "npx"
+args = [
+  "-y",
+  "mcp-remote",
+  "https://www.ultracite.ai/api/mcp/mcp"
+]
+startup_timeout_sec = 30
 ```
