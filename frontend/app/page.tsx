@@ -327,86 +327,87 @@ export default function DashboardPage() {
         <main className="mx-auto w-full max-w-[108rem] px-6 py-8 space-y-8">
           <DashboardMobileNav sections={DASHBOARD_SECTIONS} onNavigate={handleSectionNavigate} />
 
-          {activeTab === 'dashboard' ? (
-            <>
-              <section id="filters" className="scroll-mt-36">
-                <FiltersBar
-                  dates={availableDates}
-                  selectedDate={selectedDate || summary.as_of}
-                  onDateChange={handleDateChange}
-                />
-              </section>
-
-              <section id="summary" className="scroll-mt-36">
-                <SummaryCards metrics={metrics} />
-              </section>
-
-              <section id="var-comparison" className="scroll-mt-36">
-                <VarContributionChart
-                  assets={summary.assets}
-                  diversificationEffect={summary.portfolio.diversification_effect}
-                  portfolioTotal={summary.portfolio.total}
-                />
-              </section>
-
-              <section id="asset-table" className="scroll-mt-36">
-                <AssetDetailsTable assets={summary.assets} portfolio={summary.portfolio} />
-              </section>
-
-              <section id="market-insights" className="scroll-mt-36">
-                <div className="grid gap-6 lg:grid-cols-3">
-                  <div className="lg:col-span-1">
-                    <MarketSignalGauge signal={summary.market_signal} />
-                  </div>
-                  <div className="lg:col-span-2">
-                    <DriverCommentaryPanel commentary={summary.driver_commentary} />
-                  </div>
-                </div>
-              </section>
-
-              <section className="grid gap-6 lg:grid-cols-3" aria-label="時系列とニュース">
-                <div id="timeseries" className="space-y-6 lg:col-span-2 scroll-mt-36">
-                  <TimeseriesControls
-                    options={commonAssetOptions}
-                    selectedRic={selectedRic}
-                    windowDays={windowDays}
-                    onAssetChange={handleAssetChange}
-                    onWindowChange={handleWindowChange}
-                  />
-                  <VarChartCard points={timeseries?.points ?? []} key={selectedRic} />
-                  {timeseriesError && <p className="text-xs text-rose-400">{timeseriesError}</p>}
-                </div>
-                <div id="news" className="space-y-6 scroll-mt-36">
-                  <NewsPanel items={news} loading={loadingNews} />
-                </div>
-              </section>
-
-              <section id="scenario" className="scroll-mt-36">
-                <ScenarioDistributionChart
-                  values={scenarioValues}
-                  selectedRic={scenarioRic}
-                  onRicChange={(ric) => setScenarioRic(ric)}
-                  options={scenarioOptions}
-                />
-                {scenarioError && <p className="mt-1 text-xs text-rose-400">{scenarioError}</p>}
-              </section>
-            </>
-          ) : (
-            <section className="space-y-6">
-              <Card title="会話型AIアシスタント" className="overflow-hidden">
-                <p className="mb-4 text-sm text-muted-foreground">
-                  リスク管理に関する問いかけや解釈支援を行えるAIアシスタントです。知りたい情報を具体的に教えてください。
-                  <br />
-                  （例）「25年7月の日経225のシナリオPL推移を見せて。」
-                </p>
-                <iframe
-                  title="Dify chatbot preview"
-                  className="h-[900px] w-full rounded-lg border border-border"
-                  src="http://100.66.149.33/chatbot/Lnbqwwqts4OuPA7g"
-                />
-              </Card>
+          <div className={activeTab === 'dashboard' ? 'space-y-8' : 'hidden'} aria-hidden={activeTab !== 'dashboard'}>
+            <section id="filters" className="scroll-mt-36">
+              <FiltersBar
+                dates={availableDates}
+                selectedDate={selectedDate || summary.as_of}
+                onDateChange={handleDateChange}
+              />
             </section>
-          )}
+
+            <section id="summary" className="scroll-mt-36">
+              <SummaryCards metrics={metrics} />
+            </section>
+
+            <section id="var-comparison" className="scroll-mt-36">
+              <VarContributionChart
+                assets={summary.assets}
+                diversificationEffect={summary.portfolio.diversification_effect}
+                portfolioTotal={summary.portfolio.total}
+              />
+            </section>
+
+            <section id="asset-table" className="scroll-mt-36">
+              <AssetDetailsTable assets={summary.assets} portfolio={summary.portfolio} />
+            </section>
+
+            <section id="market-insights" className="scroll-mt-36">
+              <div className="grid gap-6 lg:grid-cols-3">
+                <div className="lg:col-span-1">
+                  <MarketSignalGauge signal={summary.market_signal} />
+                </div>
+                <div className="lg:col-span-2">
+                  <DriverCommentaryPanel commentary={summary.driver_commentary} />
+                </div>
+              </div>
+            </section>
+
+            <section className="grid gap-6 lg:grid-cols-3" aria-label="時系列とニュース">
+              <div id="timeseries" className="space-y-6 lg:col-span-2 scroll-mt-36">
+                <TimeseriesControls
+                  options={commonAssetOptions}
+                  selectedRic={selectedRic}
+                  windowDays={windowDays}
+                  onAssetChange={handleAssetChange}
+                  onWindowChange={handleWindowChange}
+                />
+                <VarChartCard points={timeseries?.points ?? []} key={selectedRic} />
+                {timeseriesError && <p className="text-xs text-rose-400">{timeseriesError}</p>}
+              </div>
+              <div id="news" className="space-y-6 scroll-mt-36">
+                <NewsPanel items={news} loading={loadingNews} />
+              </div>
+            </section>
+
+            <section id="scenario" className="scroll-mt-36">
+              <ScenarioDistributionChart
+                values={scenarioValues}
+                selectedRic={scenarioRic}
+                onRicChange={(ric) => setScenarioRic(ric)}
+                options={scenarioOptions}
+              />
+              {scenarioError && <p className="mt-1 text-xs text-rose-400">{scenarioError}</p>}
+            </section>
+          </div>
+
+          <section
+            className={activeTab === 'assistant' ? 'space-y-6' : 'hidden'}
+            aria-hidden={activeTab !== 'assistant'}
+          >
+            <Card title="会話型AIアシスタント" className="overflow-hidden">
+              <p className="mb-4 text-sm text-muted-foreground">
+                リスク管理に関する問いかけや解釈支援を行えるAIアシスタントです。知りたい情報を具体的に教えてください。
+                <br />
+                （例）「25年7月の日経225のシナリオPL推移を見せて。」
+              </p>
+              <iframe
+                title="Dify chatbot preview"
+                className="h-[900px] w-full rounded-lg border border-border"
+                src="http://100.66.149.33/chatbot/Lnbqwwqts4OuPA7g"
+              />
+            </Card>
+          </section>
         </main>
       </div>
     </div>
