@@ -10,7 +10,7 @@ interface MarketSignalGaugeProps {
 
 export function MarketSignalGauge({ signal }: MarketSignalGaugeProps) {
   const normalized = Math.min(Math.max(signal.score ?? 0, 0), 100)
-  const radius = 80
+  const radius = 90
   const circumference = Math.PI * radius
   const dashOffset = circumference * (1 - normalized / 100)
   const pointerAngle = (normalized / 100) * 180 - 90
@@ -18,14 +18,21 @@ export function MarketSignalGauge({ signal }: MarketSignalGaugeProps) {
 
   return (
     <Card title="市場強気度メーター" footer={`スコア: ${normalized.toFixed(1)}`}>
-      <div className="space-y-4">
-        <div className="relative mx-auto h-40 w-full max-w-sm">
-          <svg viewBox="0 0 200 120" className="w-full">
-            <path d="M20 100 A80 80 0 0 1 180 100" stroke="#1e2438" strokeWidth="14" fill="transparent" opacity="0.35" />
+      <div className="space-y-6">
+        <div className="relative mx-auto w-full max-w-md pt-6">
+          <svg viewBox="0 0 240 140" className="w-full" role="presentation" aria-hidden="true">
             <path
-              d="M20 100 A80 80 0 0 1 180 100"
+              d="M30 120 A90 90 0 0 1 210 120"
+              stroke="#1e2438"
+              strokeWidth="16"
+              fill="transparent"
+              opacity="0.25"
+              strokeLinecap="round"
+            />
+            <path
+              d="M30 120 A90 90 0 0 1 210 120"
               stroke={`url(#${gradientId})`}
-              strokeWidth="14"
+              strokeWidth="16"
               strokeLinecap="round"
               fill="transparent"
               strokeDasharray={circumference}
@@ -39,21 +46,28 @@ export function MarketSignalGauge({ signal }: MarketSignalGaugeProps) {
               </linearGradient>
             </defs>
           </svg>
+          <div className="absolute inset-x-0 top-6 flex justify-between px-8 text-[11px] font-semibold uppercase tracking-[0.35em] text-muted-foreground">
+            <span className="-translate-y-1">慎重</span>
+            <span className="-translate-y-4">中立</span>
+            <span className="-translate-y-1">強気</span>
+          </div>
           <div
-            className="absolute left-1/2 bottom-5 h-24 w-1.5 origin-bottom -translate-x-1/2 rounded-full bg-gradient-to-t from-slate-200 via-emerald-200 to-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.7)]"
+            className="absolute left-1/2 bottom-6 h-28 w-1.5 origin-bottom -translate-x-1/2 rounded-full bg-gradient-to-t from-slate-200 via-emerald-200 to-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.6)]"
             style={{ transform: `rotate(${pointerAngle}deg)` }}
           />
-          <div className="absolute inset-x-0 top-4 flex justify-between px-5 text-[10px] font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-            <span className="text-left translate-y-4">慎重</span>
-            <span className="text-center -translate-y-4">中立</span>
-            <span className="text-right translate-y-4">強気</span>
+          <div className="pointer-events-none absolute left-1/2 top-[47%] flex -translate-x-1/2 flex-col items-center rounded-xl border border-border/60 bg-background/95 px-4 py-3 text-center shadow-lg">
+            <span className="text-[0.55rem] font-semibold uppercase tracking-[0.4em] text-muted-foreground">Score</span>
+            <span className="text-3xl font-bold leading-tight text-foreground">{normalized.toFixed(0)}</span>
           </div>
         </div>
-        <div className="flex items-baseline gap-2">
-          <p className="text-4xl font-semibold">{normalized.toFixed(0)}</p>
-          <span className="text-sm font-medium text-primary">{signal.label}</span>
+        <div className="flex flex-col items-center gap-1">
+          <span className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">ステータス</span>
+          <span className="text-lg font-semibold text-primary">{signal.label}</span>
         </div>
-        <p className="text-sm leading-relaxed text-muted-foreground">{signal.narrative}</p>
+        <div className="rounded-2xl border border-border/60 bg-muted/10 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">現状コメント</p>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{signal.narrative}</p>
+        </div>
       </div>
     </Card>
   )
