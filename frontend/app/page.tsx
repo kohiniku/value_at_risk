@@ -280,49 +280,6 @@ export default function DashboardPage() {
     )
   }
 
-  const assistantFrameDoc = `
-    <!DOCTYPE html>
-    <html lang="ja">
-    <head>
-      <meta charset="UTF-8" />
-      <style>
-        body {
-          margin: 0;
-          font-family: 'Noto Sans JP', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-          background: #0b1222;
-          color: #e2e8f0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 100vh;
-        }
-        .placeholder {
-          text-align: center;
-          max-width: 480px;
-          line-height: 1.6;
-        }
-        .badge {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          padding: 6px 12px;
-          border-radius: 9999px;
-          background: rgba(59, 130, 246, 0.15);
-          color: #93c5fd;
-          font-size: 12px;
-          margin-bottom: 16px;
-          letter-spacing: 0.1em;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="placeholder">
-        <div class="badge">DIFY BOT</div>
-        <p>ここにDifyで構築したチャットボットを埋め込み予定です。接続が完了すると、この領域にリアルタイム対話UIが表示されます。</p>
-      </div>
-    </body>
-    </html>
-  `
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -401,16 +358,16 @@ export default function DashboardPage() {
           <section className="space-y-6">
             <Card
               title="会話型AIアシスタント"
-              footer="Difyチャットボットと連携予定（ダミー画面）"
               className="overflow-hidden"
             >
               <p className="mb-4 text-sm text-muted-foreground">
-                リスク管理に関する問いかけや解釈支援を行うチャット画面をここに埋め込みます。現在はiframeプレースホルダのみを表示しています。
+                リスク管理に関する問いかけや解釈支援を行えるAIアシスタントです。知りたい情報を具体的に教えてください。
+                （例）「25年7月の日経225のシナリオPL推移を見せて。」
               </p>
               <iframe
                 title="Dify chatbot preview"
-                srcDoc={assistantFrameDoc}
-                className="h-[480px] w-full rounded-lg border border-border"
+                className="h-[900px] w-full rounded-lg border border-border"
+                src="http://100.66.149.33/chatbot/Lnbqwwqts4OuPA7g"
               />
             </Card>
           </section>

@@ -19,7 +19,7 @@ export function AppHeader() {
           </div>
         </div>
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-          <span>テーマ</span>
+          <span>ダークモード</span>
           <Switch aria-label="ダークモード切り替え" pressed={theme === 'dark'} onClick={toggleTheme} />
         </div>
       </div>
