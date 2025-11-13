@@ -361,7 +361,7 @@ export default function DashboardPage() {
               className="overflow-hidden"
             >
               <p className="mb-4 text-sm text-muted-foreground">
-                リスク管理に関する問いかけや解釈支援を行えるAIアシスタントです。知りたい情報を具体的に教えてください。
+                リスク管理に関する問いかけや解釈支援を行えるAIアシスタントです。知りたい情報を具体的に教えてください。<br></br>
                 （例）「25年7月の日経225のシナリオPL推移を見せて。」
               </p>
               <iframe

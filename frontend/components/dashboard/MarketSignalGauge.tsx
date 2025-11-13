@@ -44,9 +44,9 @@ export function MarketSignalGauge({ signal }: MarketSignalGaugeProps) {
             style={{ transform: `rotate(${pointerAngle}deg)` }}
           />
           <div className="absolute inset-x-0 top-4 flex justify-between px-5 text-[10px] font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-            <span className="text-left">慎重</span>
-            <span className="text-center">中立</span>
-            <span className="text-right">強気</span>
+            <span className="text-left translate-y-4">慎重</span>
+            <span className="text-center -translate-y-4">中立</span>
+            <span className="text-right translate-y-4">強気</span>
           </div>
         </div>
         <div className="flex items-baseline gap-2">

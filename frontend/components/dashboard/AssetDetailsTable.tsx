@@ -16,25 +16,25 @@ const contributionColumns: {
   {
     key: 'window_drop',
     label: '離脱',
-    headerClass: 'bg-rose-500/10 text-black dark:text-black',
+    headerClass: 'bg-rose-500/10 text-black dark:text-white',
     cellClass: 'bg-rose-500/5',
   },
   {
     key: 'window_add',
     label: '追加',
-    headerClass: 'bg-sky-500/10 text-black dark:text-black',
+    headerClass: 'bg-sky-500/10 text-black dark:text-white',
     cellClass: 'bg-sky-500/5',
   },
   {
     key: 'position_change',
     label: 'ポジション',
-    headerClass: 'bg-amber-500/20 text-black dark:text-black',
+    headerClass: 'bg-amber-500/20 text-black dark:text-white',
     cellClass: 'bg-amber-500/5',
   },
   {
     key: 'ranking_shift',
     label: '順位変動',
-    headerClass: 'bg-emerald-500/10 text-black dark:text-black',
+    headerClass: 'bg-emerald-500/10 text-black dark:text-white',
     cellClass: 'bg-emerald-500/5',
   },
 ]
