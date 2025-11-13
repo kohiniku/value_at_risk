@@ -37,12 +37,32 @@ class PortfolioVaR(BaseModel):
     )
 
 
+class MarketSignal(BaseModel):
+    """Gauge style indicator describing macro risk appetite."""
+
+    as_of: date
+    score: float = Field(..., ge=0.0, le=100.0)
+    label: str
+    narrative: str
+
+
+class DriverCommentary(BaseModel):
+    """Textual summary of daily driver contributions and related news."""
+
+    as_of: date
+    technical_summary: str
+    news_summary: str
+    driver_totals: DriverBreakdown
+
+
 class VaRSummaryResponse(BaseModel):
     """Summary payload containing VaR details for a specific valuation date."""
 
     as_of: date
     portfolio: PortfolioVaR
     assets: List[AssetVaR]
+    market_signal: MarketSignal
+    driver_commentary: DriverCommentary
 
 
 class VaRTimeSeriesPoint(BaseModel):

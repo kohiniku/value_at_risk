@@ -34,6 +34,13 @@ class VarApiTests(unittest.TestCase):
 
         self.assertGreater(payload.portfolio.total, 0)
         self.assertGreaterEqual(len(payload.assets), 3)
+        self.assertGreaterEqual(payload.market_signal.score, 0)
+        self.assertLessEqual(payload.market_signal.score, 100)
+        self.assertTrue(payload.market_signal.label)
+        self.assertTrue(payload.driver_commentary.technical_summary)
+        self.assertTrue(payload.driver_commentary.news_summary)
+        totals = payload.driver_commentary.driver_totals
+        self.assertTrue(any(abs(value) > 0 for value in totals.model_dump().values()))
         first_asset = payload.assets[0]
         self.assertTrue(first_asset.category)
         self.assertSetEqual(
@@ -55,7 +62,9 @@ class VarApiTests(unittest.TestCase):
         payload = routes.get_news(limit=2)
         self.assertEqual(len(payload), 2)
         sources = {item.source for item in payload}
-        self.assertIn("日本経済新聞", sources)
+        self.assertEqual(len(sources), 2, msg="ニュースソースが重複しています")
+        for item in payload:
+            self.assertIn("｜", item.headline)
 
     def test_var_dates_endpoint(self) -> None:
         dates = routes.list_snapshot_dates()
@@ -67,6 +76,10 @@ class VarApiTests(unittest.TestCase):
         target = dates[-1]
         payload = routes.get_var_summary(as_of=target)
         self.assertEqual(payload.as_of, target)
+        self.assertEqual(payload.market_signal.as_of, target)
+        self.assertEqual(payload.driver_commentary.as_of, target)
+        self.assertTrue(payload.driver_commentary.technical_summary)
+        self.assertTrue(payload.driver_commentary.news_summary)
 
     def test_scenario_distribution_endpoint(self) -> None:
         payload = routes.get_scenario_distribution(ric=PORTFOLIO_AGGREGATE_RIC)

@@ -22,10 +22,26 @@ export interface Portfolio {
   diversification_effect: number
 }
 
+export interface MarketSignal {
+  as_of: string
+  score: number
+  label: string
+  narrative: string
+}
+
+export interface DriverCommentary {
+  as_of: string
+  technical_summary: string
+  news_summary: string
+  driver_totals: DriverContributions
+}
+
 export interface SummaryResponse {
   as_of: string
   portfolio: Portfolio
   assets: Asset[]
+  market_signal: MarketSignal
+  driver_commentary: DriverCommentary
 }
 
 export interface TimeSeriesPoint {

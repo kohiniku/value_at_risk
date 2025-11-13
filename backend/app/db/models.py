@@ -73,3 +73,22 @@ class ScenarioDistributionRecord(Base):
     ric: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
     scenario_index: Mapped[int] = mapped_column(Integer, nullable=False)
     value: Mapped[float] = mapped_column(Float, nullable=False)
+
+
+class MarketSignalRecord(Base):
+    __tablename__ = "market_signal_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    as_of: Mapped[date] = mapped_column(Date, unique=True, nullable=False, index=True)
+    gauge_value: Mapped[float] = mapped_column(Float, nullable=False)
+    label: Mapped[str] = mapped_column(String(32), nullable=False)
+    narrative: Mapped[str] = mapped_column(String(512), nullable=False)
+
+
+class DriverCommentaryRecord(Base):
+    __tablename__ = "driver_commentary_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    as_of: Mapped[date] = mapped_column(Date, unique=True, nullable=False, index=True)
+    technical_summary: Mapped[str] = mapped_column(String(512), nullable=False)
+    news_summary: Mapped[str] = mapped_column(String(512), nullable=False)

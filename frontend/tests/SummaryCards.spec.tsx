@@ -10,8 +10,11 @@ describe('SummaryCards', () => {
 
     render(<SummaryCards metrics={metrics} />)
 
-    expect(screen.getByText('ポートフォリオVaR')).toBeInTheDocument()
+    expect(screen.getByText((content) => content.includes('ポートフォリオVaR'))).toBeInTheDocument()
     expect(screen.getByText('21.8')).toBeInTheDocument()
-    expect(screen.getByText('+5.10%')).toBeInTheDocument()
+    const changeLabels = screen.getAllByText(
+      (_, element) => element?.textContent?.replace(/\s/g, '').includes('+5.10%') ?? false,
+    )
+    expect(changeLabels.length).toBeGreaterThan(0)
   })
 })

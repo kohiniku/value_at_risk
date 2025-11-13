@@ -6,11 +6,20 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import desc, select
 
 from ..core.constants import PORTFOLIO_AGGREGATE_RIC
-from ..db.models import NewsRecord, ScenarioDistributionRecord, VaRSnapshot, VaRTimeSeriesRecord
+from ..db.models import (
+    DriverCommentaryRecord,
+    MarketSignalRecord,
+    NewsRecord,
+    ScenarioDistributionRecord,
+    VaRSnapshot,
+    VaRTimeSeriesRecord,
+)
 from ..db.session import SessionLocal
 from ..models.var import (
     AssetVaR,
     DriverBreakdown,
+    DriverCommentary,
+    MarketSignal,
     NewsItem,
     PortfolioVaR,
     ScenarioDistributionResponse,
@@ -37,6 +46,15 @@ def get_var_summary(
         if snapshot is None:
             raise HTTPException(status_code=404, detail="VaR snapshot not found")
 
+        signal_stmt = select(MarketSignalRecord).where(MarketSignalRecord.as_of == snapshot.as_of)
+        signal_record = session.scalars(signal_stmt).first()
+        commentary_stmt = select(DriverCommentaryRecord).where(
+            DriverCommentaryRecord.as_of == snapshot.as_of
+        )
+        commentary_record = session.scalars(commentary_stmt).first()
+        if signal_record is None or commentary_record is None:
+            raise HTTPException(status_code=404, detail="Market context not found for snapshot")
+
         portfolio = PortfolioVaR(
             total=snapshot.portfolio_total,
             change_amount=snapshot.portfolio_change_amount,
@@ -61,7 +79,33 @@ def get_var_summary(
             for asset in snapshot.assets
         ]
 
-        return VaRSummaryResponse(as_of=snapshot.as_of, portfolio=portfolio, assets=assets)
+        driver_totals = DriverBreakdown(
+            window_drop=round(sum(asset.window_drop_contribution for asset in snapshot.assets), 3),
+            window_add=round(sum(asset.window_add_contribution for asset in snapshot.assets), 3),
+            position_change=round(sum(asset.position_change_contribution for asset in snapshot.assets), 3),
+            ranking_shift=round(sum(asset.ranking_shift_contribution for asset in snapshot.assets), 3),
+        )
+
+        market_signal = MarketSignal(
+            as_of=signal_record.as_of,
+            score=signal_record.gauge_value,
+            label=signal_record.label,
+            narrative=signal_record.narrative,
+        )
+        driver_commentary = DriverCommentary(
+            as_of=commentary_record.as_of,
+            technical_summary=commentary_record.technical_summary,
+            news_summary=commentary_record.news_summary,
+            driver_totals=driver_totals,
+        )
+
+        return VaRSummaryResponse(
+            as_of=snapshot.as_of,
+            portfolio=portfolio,
+            assets=assets,
+            market_signal=market_signal,
+            driver_commentary=driver_commentary,
+        )
 
 
 @router.get("/var/timeseries", response_model=VaRTimeSeriesResponse)

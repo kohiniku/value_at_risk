@@ -4,13 +4,22 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 from math import sin
 from random import Random
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..core.constants import PORTFOLIO_AGGREGATE_RIC, SCENARIO_WINDOW
 from .base import Base
-from .models import AssetVaRRecord, NewsRecord, ScenarioDistributionRecord, VaRSnapshot, VaRTimeSeriesRecord
+from .models import (
+    AssetVaRRecord,
+    DriverCommentaryRecord,
+    MarketSignalRecord,
+    NewsRecord,
+    ScenarioDistributionRecord,
+    VaRSnapshot,
+    VaRTimeSeriesRecord,
+)
 from .session import SessionLocal, engine
 
 ASSET_DEFINITIONS = [
@@ -46,6 +55,76 @@ CONTRIBUTION_PROFILES = {
 
 SNAPSHOT_DAYS = 5
 
+DRIVER_LABELS = {
+    "window_drop": "離脱要因",
+    "window_add": "追加要因",
+    "position_change": "ポジション調整",
+    "ranking_shift": "順位シフト",
+}
+
+NEWS_TEMPLATES = [
+    {
+        "headline": "日銀、長期金利の許容レンジ拡大を示唆",
+        "source": "日本経済新聞",
+        "summary": "長期ゾーンのJGB利回りがじり高となり、国内機関投資家のポジション調整が波及。",
+        "angle": "金利の変動が離脱要因を押し上げ、国内債券と株式のリスク許容度を左右",
+    },
+    {
+        "headline": "米CPI鈍化で長期債が続伸、ヘッジ需要も増加",
+        "source": "Bloomberg",
+        "summary": "コアCPIが予想を下回り、デュレーション・ヘッジへの需要が再び活発化。",
+        "angle": "米金利の落ち着きが追加要因を抑え、ポートフォリオ全体のVaR低下を後押し",
+    },
+    {
+        "headline": "OPECプラス減産協議でコモディティ相場が上昇",
+        "source": "Reuters",
+        "summary": "需給引き締まり観測でエネルギー関連コモディティが急伸し、関連株も反応。",
+        "angle": "コモディティとクレジットでポジション調整が発生し、順位シフトを誘発",
+    },
+    {
+        "headline": "米住宅ローン金利が1年ぶり低水準、MBSに買い戻し",
+        "source": "WSJ",
+        "summary": "モーゲージスプレッドがタイト化し、エージェンシーMBSへの資金回帰が進展。",
+        "angle": "モーゲージ資産で追加要因がプラス寄与し、分散効果の底上げに寄与",
+    },
+    {
+        "headline": "中国人民銀が預金準備率を引き下げ",
+        "source": "Caixin",
+        "summary": "国内景気の下支え策として主要銀行の預金準備率を引き下げ、元建て資産が買い戻された。",
+        "angle": "アジアクレジットのスプレッド縮小がテクニカルなプラス寄与を拡大",
+    },
+    {
+        "headline": "ECB理事会、量的引き締めの減速を示唆",
+        "source": "Handelsblatt",
+        "summary": "バランスシート圧縮のペースを緩める示唆が出て欧州債が急伸、銀行株も小幅高。",
+        "angle": "欧州金利と金融セクターのVaRが同時に低下し分散効果を押し上げた",
+    },
+    {
+        "headline": "WTIが85ドル台に到達、シェール増産期待が後退",
+        "source": "CNBC",
+        "summary": "在庫統計の急減を受けてWTI先物が大幅高、シェール企業の増産計画が慎重姿勢へ。",
+        "angle": "エネルギー関連ポジションのボラティリティ上昇でコモディティVaRが拡大",
+    },
+    {
+        "headline": "ドル円150円台を維持、当局の口先介入が影響",
+        "source": "Nikkei Asia",
+        "summary": "為替当局の連日の発言がドル円を150円台に定着させ、輸出株に資金が流入した。",
+        "angle": "円安が株式セクターの順張り需要を創出し、ポジション調整要因が顕在化",
+    },
+    {
+        "headline": "米地銀の与信費用見通しが悪化、社債スプレッド拡大",
+        "source": "Financial Times",
+        "summary": "地方銀行の決算で貸倒引当金の積み増しが相次ぎ、IG/HYスプレッドが同時に拡大。",
+        "angle": "クレジット要因のウエイトが高まり、離脱要因のマイナス寄与が強まった",
+    },
+    {
+        "headline": "テック大型株が決算でサプライズ、NASDAQ先物が急伸",
+        "source": "Wall Street Journal",
+        "summary": "AI関連投資の強気指針を受けてSOX指数も連れ高となり、金利観測も好転。",
+        "angle": "米国株テック銘柄のプラス寄与がポートフォリオの最大ドライバーとなった",
+    },
+]
+
 
 def init_db() -> None:
     """Reset schema and seed demo data."""
@@ -62,6 +141,7 @@ def seed_demo_data(session: Session) -> None:
 
     prev_amounts = {definition["ric"]: definition["base_amount"] for definition in ASSET_DEFINITIONS}
     prev_portfolio_total = None
+    daily_contexts: list[dict[str, Any]] = []
 
     for as_of in as_of_dates:
         asset_records: list[AssetVaRRecord] = []
@@ -112,10 +192,25 @@ def seed_demo_data(session: Session) -> None:
         )
         snapshot.assets = asset_records
         session.add(snapshot)
+        driver_totals = _aggregate_driver_totals(asset_records)
+        leading_asset_record = max(asset_records, key=lambda record: record.amount, default=None)
+        daily_contexts.append(
+            {
+                "as_of": as_of,
+                "driver_totals": driver_totals,
+                "leading_asset": leading_asset_record.name if leading_asset_record else "主要資産",
+                "leading_category": leading_asset_record.category if leading_asset_record else "ポートフォリオ",
+                "portfolio_change_pct": portfolio_change_pct,
+                "portfolio_total": portfolio_total,
+                "diversification_effect": diversification_effect,
+            }
+        )
 
     session.flush()
+    news_map = _seed_news(session, as_of_dates)
+    _seed_market_signals(session, daily_contexts)
+    _seed_driver_commentaries(session, daily_contexts, news_map)
     _seed_timeseries(session, today)
-    _seed_news(session, today)
     _seed_scenario_distribution(session)
     session.commit()
 
@@ -125,6 +220,149 @@ def _build_contributions(category: str, change_amount: float) -> dict[str, float
     if change_amount == 0:
         return {key: 0.0 for key in profile}
     return {key: round(change_amount * weight, 3) for key, weight in profile.items()}
+
+
+def _aggregate_driver_totals(records: list[AssetVaRRecord]) -> dict[str, float]:
+    totals = {key: 0.0 for key in DRIVER_LABELS}
+    for record in records:
+        totals["window_drop"] += record.window_drop_contribution
+        totals["window_add"] += record.window_add_contribution
+        totals["position_change"] += record.position_change_contribution
+        totals["ranking_shift"] += record.ranking_shift_contribution
+    return {key: round(value, 3) for key, value in totals.items()}
+
+
+def _seed_market_signals(session: Session, contexts: list[dict[str, Any]]) -> None:
+    records: list[MarketSignalRecord] = []
+    for context in contexts:
+        as_of: date = context["as_of"]  # type: ignore[assignment]
+        driver_totals: dict[str, float] = context["driver_totals"]  # type: ignore[assignment]
+        diversification_effect = float(context["diversification_effect"])
+        portfolio_total = float(context["portfolio_total"]) or 1.0
+        change_pct = float(context["portfolio_change_pct"])
+        leading_asset = str(context["leading_asset"])
+        leading_category = str(context["leading_category"])
+        noise = sin(as_of.toordinal() / 3) * 7
+        ratio = diversification_effect / portfolio_total
+        raw_score = 55 + noise + ratio * -220
+        raw_score += driver_totals["position_change"] * 6
+        raw_score += driver_totals["window_add"] * 3
+        raw_score -= abs(driver_totals["window_drop"]) * 4
+        raw_score -= change_pct * 0.8
+        score = max(5.0, min(95.0, round(raw_score, 1)))
+        label = _derive_signal_label(score)
+        resilience = "底堅さ" if score >= 55 else "警戒感"
+        narrative = (
+            f"{leading_category}の{leading_asset}がリスクを牽引。"
+            f"分散効果{diversification_effect:+.2f}億円が{resilience}を示唆。"
+        )
+        records.append(
+            MarketSignalRecord(
+                as_of=as_of,
+                gauge_value=score,
+                label=label,
+                narrative=narrative,
+            )
+        )
+    session.add_all(records)
+
+
+def _derive_signal_label(score: float) -> str:
+    if score >= 66:
+        return "強気ゾーン"
+    if score >= 40:
+        return "中立ゾーン"
+    return "慎重ゾーン"
+
+
+def _seed_driver_commentaries(
+    session: Session,
+    contexts: list[dict[str, Any]],
+    news_map: dict[date, list[dict[str, str]]],
+) -> None:
+    records: list[DriverCommentaryRecord] = []
+    for context in contexts:
+        as_of: date = context["as_of"]  # type: ignore[assignment]
+        driver_totals: dict[str, float] = context["driver_totals"]  # type: ignore[assignment]
+        leading_asset = str(context["leading_asset"])
+        leading_category = str(context["leading_category"])
+        diversification_effect = float(context["diversification_effect"])
+        technical_summary, news_summary = _build_commentary_sections(
+            as_of,
+            driver_totals,
+            leading_asset,
+            leading_category,
+            diversification_effect,
+            news_map.get(as_of, []),
+        )
+        records.append(
+            DriverCommentaryRecord(
+                as_of=as_of,
+                technical_summary=technical_summary,
+                news_summary=news_summary,
+            )
+        )
+    session.add_all(records)
+
+
+def _build_commentary_sections(
+    as_of: date,
+    driver_totals: dict[str, float],
+    leading_asset: str,
+    leading_category: str,
+    diversification_effect: float,
+    news_entries: list[dict[str, str]],
+) -> tuple[str, str]:
+    day_label = f"{as_of.month}/{as_of.day}"
+    ranked = sorted(driver_totals.items(), key=lambda item: abs(item[1]), reverse=True)
+    primary_key, primary_value = ranked[0]
+    secondary_key, secondary_value = ranked[1] if len(ranked) > 1 else ranked[0]
+    technical_summary = (
+        f"{day_label}のテクニカル要因は{DRIVER_LABELS[primary_key]} {primary_value:+.2f}億円が最大、"
+        f"次いで{DRIVER_LABELS[secondary_key]} {secondary_value:+.2f}億円。"
+        f"{leading_category}（{leading_asset}）が分散効果{diversification_effect:+.2f}億円で振れを吸収。"
+    )
+    news_entry = news_entries[0] if news_entries else None
+    if news_entry:
+        angle = news_entry.get("angle", "")
+        if angle and not angle.endswith("。"):
+            angle = f"{angle}。"
+        news_summary = (
+            f"{news_entry['headline']}（{news_entry['source']}）。"
+            f"{angle or '外部環境がVaRシグナルに直結。'}"
+        )
+    else:
+        news_summary = "当日は特筆すべき外部ヘッドラインがなく、内部要因がVaRを主導。"
+    return (technical_summary, news_summary)
+
+
+def _seed_news(session: Session, as_of_dates: list[date]) -> dict[date, list[dict[str, str]]]:
+    news_records: list[NewsRecord] = []
+    grouped: dict[date, list[dict[str, str]]] = {}
+    for idx, as_of in enumerate(as_of_dates):
+        for variant in range(2):
+            template_index = (idx * 2 + variant) % len(NEWS_TEMPLATES)
+            template = NEWS_TEMPLATES[template_index]
+            published_at = datetime.combine(as_of, datetime.min.time()) + timedelta(hours=variant * 6 + idx)
+            stamp = as_of.strftime("%m/%d")
+            headline = f"{template['headline']}｜{stamp}"
+            summary = f"{template['summary']}（基準日 {stamp}）"
+            record = NewsRecord(
+                headline=headline,
+                published_at=published_at,
+                source=template["source"],
+                summary=summary,
+            )
+            news_records.append(record)
+            grouped.setdefault(as_of, []).append(
+                {
+                    "headline": headline,
+                    "source": template["source"],
+                    "angle": template["angle"],
+                }
+            )
+    session.add_all(news_records)
+    return grouped
 
 
 def _seed_timeseries(session: Session, today: date) -> None:
@@ -169,30 +407,6 @@ def _seed_timeseries(session: Session, today: date) -> None:
         prev_value = portfolio_value
 
     session.add_all(portfolio_points)
-
-
-def _seed_news(session: Session, today: date) -> None:
-    news = [
-        NewsRecord(
-            headline="日銀、長期金利の許容レンジ拡大を示唆",
-            published_at=datetime.combine(today, datetime.min.time()),
-            source="日本経済新聞",
-            summary="長期ゾーンのJGB利回りがじり高となり、国内機関投資家のポジション調整が波及。",
-        ),
-        NewsRecord(
-            headline="米CPI鈍化で長期債が続伸、ヘッジ需要も増加",
-            published_at=datetime.combine(today, datetime.min.time()) + timedelta(hours=6),
-            source="Bloomberg",
-            summary="コアCPIが予想を下回り、デュレーション・ヘッジへの需要が再び活発化。",
-        ),
-        NewsRecord(
-            headline="モーゲージスプレッドが落ち着きヘッジ需要後退",
-            published_at=datetime.combine(today - timedelta(days=1), datetime.min.time()) + timedelta(hours=12),
-            source="Reuters",
-            summary="スプレッドがタイト化し、保険勢のポジションが軽くなった。",
-        ),
-    ]
-    session.add_all(news)
 
 
 def _seed_scenario_distribution(session: Session) -> None:
