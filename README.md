@@ -25,12 +25,17 @@ Both layers use mocked data so you can iterate on the UI before wiring real data
 
 ### Containerised setup
 
-Alternatively run the full stack (backend, frontend, nginx reverse proxy) via Docker Compose. The default compose file now mounts your local source directories into the containers so code changes are reflected immediately without rebuilding images:
+Build the application images with Buildx, then start the stack with Docker Compose:
 
 ```bash
-# first run installs dependencies and seeds the DB
+# optional: export IMAGE_REGISTRY, *_IMAGE, *_TAG before running bake
+docker buildx bake
 docker compose up backend frontend nginx
 ```
+
+`docker buildx bake` consumes `docker-bake.hcl`, so you can pass flags such as `--push` or `--set *.platform=linux/amd64` when publishing images. The same `IMAGE_REGISTRY`, `BACKEND_IMAGE`, `FRONTEND_IMAGE`, and `*_TAG` variables are also read by Compose so the images you just built are reused verbatim.
+
+The compose file still mounts your local source directories into the running containers, so backend `uvicorn --reload` and `pnpm dev` continue to pick up code changes instantly even though the images were pre-built.
 
 On subsequent edits just refresh the browser (backend uses `uvicorn --reload`, frontend runs `pnpm dev`). The command exposes:
 
