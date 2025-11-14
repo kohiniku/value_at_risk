@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1.6
 FROM node:20-alpine
 
+RUN apk add --no-cache libc6-compat
+
 ARG NEXT_PUBLIC_API_BASE_URL=/api/v1
 ARG NEXT_PUBLIC_NEWS_LIMIT=5
 
