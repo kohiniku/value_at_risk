@@ -3,7 +3,7 @@
 This repository hosts the first prototype for the Value at Risk dashboard initiative. The solution is split into:
 
 - `backend/` – FastAPI service delivering SQLite-backed VaR/newsデータ with automated API checks.
-- `frontend/` – Next.js 14 dashboard implementing the dark, card-driven UI described in `DESIGN.md`.
+- `frontend/` – Nuxt 3 (Vue) dashboard implementing the dark, card-driven UI described in `DESIGN.md`.
 
 ## Development Workflow
 
@@ -15,11 +15,11 @@ This repository hosts the first prototype for the Value at Risk dashboard initia
    uv run uvicorn app.main:app --reload --port 8000
    ```
 3. Start the frontend:
-   ```bash
-   cd frontend
-   pnpm install
-   pnpm dev
-   ```
+  ```bash
+  cd frontend
+  pnpm install
+  pnpm dev
+  ```
 
 Both layers use mocked data so you can iterate on the UI before wiring real data sources.
 
@@ -34,11 +34,11 @@ docker compose up backend frontend nginx
 
 On subsequent edits just refresh the browser (backend uses `uvicorn --reload`, frontend runs `pnpm dev`). The command exposes:
 
-- http://localhost:80 – Next.js frontend served through nginx
+- http://localhost:80 – Nuxt frontend served through nginx
 - http://localhost:80/api/v1 – FastAPI endpoints proxied by nginx
 - http://localhost:8000 – FastAPI service (bypassing nginx, useful for debugging)
 
-> When running behind nginx the default `NEXT_PUBLIC_API_BASE_URL=/api/v1` already routes requests through the reverse proxy. Override it (e.g. `http://localhost:8000/api/v1`) only when bypassing nginx during local debugging.
+> When running behind nginx the default `NUXT_PUBLIC_API_BASE_URL=/api/v1` already routes requests through the reverse proxy. Override it (e.g. `http://localhost:8000/api/v1`) only when bypassing nginx during local debugging.
 >
 > Adjust `NGINX_PORT` in `.env` if you need to remap local ports—the compose file reads those values everywhere (container command, exposed ports, and reverse proxy).
 

@@ -62,7 +62,7 @@ Mainコンテナ（`max-w-6xl`, `space-y-8`）に以下の順番で縦積みす�
 - TailwindのCSS変数テーマ（`bg-background`, `text-foreground`, etc.）を利用。`darkMode: 'class'`。
 - `components/ui` には Button / Select / Card / Skeleton / Switch 等の共通ピースがある。
 - `AppHeader` にブランド、ホームリンク、ダークモードトグルを配置。トグルはローカルストレージに保存。
-- `app/page.tsx` でロジックを組み立て、`useEffect`でデータをオートリフレッシュ。
+- `pages/index.vue` でロジックを組み立て、`watch` / `onMounted` でデータをオートリフレッシュ。
 
 ## Future Extensions
 - Scenarioヒストグラムに箱ひげ・信頼区間ラインを追加する余地あり。

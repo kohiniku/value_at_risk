@@ -33,18 +33,17 @@ This file provides guidance for AGENT AI when working with code in this reposito
 - 変動要因4分類（window_drop, window_add, position_change, ranking_shift）はテーブル列と一致させ、寄与度の色も固定。
 
 ## Technology Stack
-- **Frontend**: Next.js (App Router) + Tailwind CSS + ApexCharts + shadcn/ui コンポーネント。PayloadCMSテーマ構成を踏襲。
+- **Frontend**: Nuxt 3 (Vue) + Tailwind CSS + ApexCharts + shadcn/uiコンポーネント（`components/ui`）。PayloadCMSテーマ構成を踏襲。
 - **Backend**: FastAPI (Python 3.12) + SQLAlchemy ORM。
 - **Package Management**: Pythonは `uv`、Nodeは `pnpm`（開発時はbind mountでホットリロード）。
 - **Database**: SQLite（`DATABASE_URL`）。
 - **Deployment**: docker compose + nginxリバースプロキシ。`.env`に主要定数を集約（`CORS_ORIGINS`はJSON配列）。
 
-## Testing Expectations
 - **Backend**: `uv run python -m unittest backend.tests.test_var_api` を最優先実行。API回帰（summary/timeseries/news/dates/scenario）が壊れていないか確認。
-- **Frontend**: VitestでUIロジックをカバー（特にフォーマット関数・ステートフック）。E2Eは重要フロー（基準日変更、シナリオ切替）。
+- **Frontend**: Vitest + Testing LibraryでUIロジックをカバー（特にフォーマット関数・状態管理用コンポーザブル）。E2Eは重要フロー（基準日変更、シナリオ切替）。
 - **Integration**: API-frontend結合を想定したMock/Storybookを活用。自動更新ロジックはFakeTimersでテスト可能に。
 
 ## Execution Notes
 - Pythonスクリプトは docker attach → `uv run <command>` の形で実行する。
 - デモデータ再生成: `uv run python -m app.db.seed`。
-- 自動更新を止めたい場合でもUI上にリフレッシュボタンを復活させない。Interval値は `.env` (`NEXT_PUBLIC_REFRESH_INTERVAL_MS`) で調整。
+- 自動更新を止めたい場合でもUI上にリフレッシュボタンを復活させない。Interval値は `.env` (`NUXT_PUBLIC_REFRESH_INTERVAL_MS`) で調整。

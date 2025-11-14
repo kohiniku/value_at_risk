@@ -4,10 +4,13 @@ import defaultTheme from 'tailwindcss/defaultTheme'
 const config: Config = {
   darkMode: 'class',
   content: [
-    './app/**/*.{js,ts,jsx,tsx}',
-    './components/**/*.{js,ts,jsx,tsx}',
-    './ui/**/*.{js,ts,jsx,tsx}',
-    './lib/**/*.{js,ts,jsx,tsx}'
+    './components/**/*.{js,ts,vue}',
+    './composables/**/*.{js,ts}',
+    './layouts/**/*.{js,ts,vue}',
+    './pages/**/*.{js,ts,vue}',
+    './plugins/**/*.{js,ts}',
+    './lib/**/*.{js,ts}',
+    './app.vue'
   ],
   theme: {
     extend: {
