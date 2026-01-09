@@ -404,7 +404,7 @@ export default function DashboardPage() {
               <iframe
                 title="Dify chatbot preview"
                 className="h-[900px] w-full rounded-lg border border-border"
-                src="http://100.66.149.33/chatbot/Lnbqwwqts4OuPA7g"
+                src="http://100.66.149.230/chatbot/b7OeyvKGrnpQ1KRt"
               />
             </Card>
           </section>
