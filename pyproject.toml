@@ -1,25 +1,11 @@
 [project]
-name = "var-backend"
+name = "value_at_risk"
 version = "0.1.0"
-description = "Value at Risk API prototype"
+description = "Value at Risk dashboard"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.110",
-    "uvicorn>=0.27",
-    "sqlalchemy>=2.0",
-    "pydantic>=2.6",
-    "pydantic-settings>=2.2",
-    "python-dotenv>=1.0",
-    "psycopg2-binary>=2.9.11",
 ]
-
-[project.optional-dependencies]
-dev = []
-
-[build-system]
-requires = ["setuptools>=68"]
-build-backend = "setuptools.build_meta"
 
 [tool.ruff]
 line-length = 150
@@ -45,7 +31,7 @@ disable = "all"
 enable = "E1101"
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.13"
 no_strict_optional = true
 ignore_missing_imports = true
 check_untyped_defs = true

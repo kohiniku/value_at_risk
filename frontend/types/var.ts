@@ -36,6 +36,19 @@ export interface DriverCommentary {
   driver_totals: DriverContributions
 }
 
+export interface FactorVaR {
+  risk_category: string
+  currency: string | null
+  risk_factor: string
+  risk_direction: boolean
+  var_amount: number
+  comparison: number | null
+}
+
+export interface FactorVarListResponse {
+  factor_var_list: FactorVaR[]
+}
+
 export interface SummaryResponse {
   as_of: string
   portfolio: Portfolio

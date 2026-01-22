@@ -1,4 +1,3 @@
-"""Database engine and session management."""
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -10,9 +9,3 @@ if settings.database_url.startswith("sqlite"):
 
 engine = create_engine(settings.database_url, connect_args=connect_args, future=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-
-
-def get_session():
-    """Provide a transactional scope around a series of operations."""
-
-    return SessionLocal()

@@ -15,7 +15,7 @@ import { DriverCommentaryPanel } from '@/components/dashboard/DriverCommentaryPa
 import { DashboardNavigation, DashboardMobileNav } from '@/components/dashboard/DashboardNavigation'
 import { Card } from '@/components/ui/card'
 import { buildMetrics } from '@/lib/metrics'
-import type { NewsItem, SummaryResponse, TimeSeriesResponse } from '@/types/var'
+import type { FactorVarListResponse, NewsItem, SummaryResponse, TimeSeriesResponse } from '@/types/var'
 import { AGGREGATE_RIC } from '@/types/var'
 import type { ScenarioDistributionResponse } from '@/types/var'
 
@@ -44,11 +44,17 @@ const DASHBOARD_SECTIONS: { id: string; label: string; description?: string }[] 
 export default function DashboardPage() {
   const [summary, setSummary] = useState<SummaryResponse | null>(null)
   const [summaryError, setSummaryError] = useState<string | null>(null)
+  const [factorVar, setFactorVar] = useState<FactorVarListResponse | null>(null)
+  const [factorVarError, setFactorVarError] = useState<string | null>(null)
   const [availableDates, setAvailableDates] = useState<string[]>([])
   const [selectedDate, setSelectedDate] = useState('')
+  const [comparisonDate, setComparisonDate] = useState('')
+  const [selectedBranch, setSelectedBranch] = useState('')
   const [selectedRic, setSelectedRic] = useState(AGGREGATE_RIC)
+  const [timeseriesRic, setTimeseriesRic] = useState('')
   const [windowDays, setWindowDays] = useState(30)
   const [timeseries, setTimeseries] = useState<TimeSeriesResponse | null>(null)
+  const [timeseriesLoading, setTimeseriesLoading] = useState(false)
   const [timeseriesError, setTimeseriesError] = useState<string | null>(null)
   const [news, setNews] = useState<NewsItem[]>([])
   const [loadingNews, setLoadingNews] = useState(true)
@@ -66,6 +72,35 @@ export default function DashboardPage() {
     }
     return (await response.json()) as SummaryResponse
   }, [selectedDate])
+
+  const fetchFactorVaR = useCallback(async () => {
+    const params = new URLSearchParams()
+    if (selectedDate) {
+      params.append('as_of', selectedDate)
+    }
+    if (comparisonDate) {
+      params.append('comparison_date', comparisonDate)
+    }
+    if (selectedBranch) {
+      try {
+        const branchFilter = JSON.parse(selectedBranch)
+        if (branchFilter.dept_name) {
+          params.append('dept_name', branchFilter.dept_name)
+        }
+        if (branchFilter.section_code) {
+          params.append('section_code', branchFilter.section_code)
+        }
+      } catch (e) {
+        console.error('Failed to parse selectedBranch', e)
+      }
+    }
+    const search = params.toString() ? `?${params.toString()}` : ''
+    const response = await fetch(`${API_BASE}/var/factor_var${search}`, { cache: 'no-store' })
+    if (!response.ok) {
+      throw new Error(`Failed summary request: ${response.status}`)
+    }
+    return (await response.json()) as FactorVarListResponse
+  }, [selectedDate, comparisonDate, selectedBranch])
 
   useEffect(() => {
     let active = true
@@ -108,6 +143,34 @@ export default function DashboardPage() {
   }, [fetchSummary, selectedDate])
 
   useEffect(() => {
+    let active = true
+    const load = async () => {
+      try {
+        const payload = await fetchFactorVaR()
+        if (!active) {
+          return
+        }
+        setFactorVar(payload)
+        setFactorVarError(null)
+      } catch (error) {
+        console.error('ファクター別VaR取得に失敗しました', error)
+        if (active) {
+          setFactorVarError('ファクター別VaRの取得に失敗しました')
+          setFactorVar(null)
+        }
+      }
+    }
+
+    load()
+    const intervalId = setInterval(load, REFRESH_INTERVAL_MS)
+
+    return () => {
+      active = false
+      clearInterval(intervalId)
+    }
+  }, [fetchFactorVaR, selectedDate, comparisonDate, selectedBranch])
+
+  useEffect(() => {
     let cancelled = false
     const loadDates = async () => {
       try {
@@ -119,6 +182,7 @@ export default function DashboardPage() {
         if (!cancelled && payload.length) {
           setAvailableDates(payload)
           setSelectedDate((prev) => (prev && payload.includes(prev) ? prev : payload[0]))
+          setComparisonDate((prev) => (prev && payload.includes(prev) ? prev : (payload.length > 1 ? payload[1] : '')))
         }
       } catch (error) {
         console.error('基準日リスト取得に失敗しました', error)
@@ -143,19 +207,39 @@ export default function DashboardPage() {
   }, [selectedRic, summary])
 
   const fetchSeries = useCallback(async () => {
+    const targetRic = timeseriesRic || AGGREGATE_RIC
+    const params = new URLSearchParams()
+    params.append('ric', targetRic)
+    params.append('days', windowDays.toString())
+
+    if (selectedBranch) {
+      try {
+        const branchFilter = JSON.parse(selectedBranch)
+        if (branchFilter.dept_name) {
+          params.append('dept_name', branchFilter.dept_name)
+        }
+        if (branchFilter.section_code) {
+          params.append('section_code_filter', branchFilter.section_code)
+        }
+      } catch (e) {
+        console.error('Failed to parse selectedBranch for timeseries', e)
+      }
+    }
+
     const response = await fetch(
-      `${API_BASE}/var/timeseries?ric=${encodeURIComponent(selectedRic)}&days=${windowDays}`,
+      `${API_BASE}/var/timeseries?${params.toString()}`,
       { cache: 'no-store' },
     )
     if (!response.ok) {
       throw new Error(`Failed timeseries request: ${response.status}`)
     }
     return (await response.json()) as TimeSeriesResponse
-  }, [selectedRic, windowDays])
+  }, [timeseriesRic, windowDays, selectedBranch])
 
   useEffect(() => {
     let active = true
     const load = async () => {
+      setTimeseriesLoading(true)
       try {
         const payload = await fetchSeries()
         if (active) {
@@ -168,6 +252,10 @@ export default function DashboardPage() {
           setTimeseries(null)
           setTimeseriesError('時系列データの取得に失敗しました')
         }
+      } finally {
+        if (active) {
+          setTimeseriesLoading(false)
+        }
       }
     }
 
@@ -178,7 +266,7 @@ export default function DashboardPage() {
       active = false
       clearInterval(intervalId)
     }
-  }, [fetchSeries, selectedRic, windowDays])
+  }, [fetchSeries, timeseriesRic, windowDays])
 
   // fetch news once
   useEffect(() => {
@@ -215,7 +303,10 @@ export default function DashboardPage() {
     }
   }, [])
 
-  const metrics = useMemo(() => (summary ? buildMetrics(summary) : []), [summary])
+  const metrics = useMemo(
+    () => (summary && factorVar ? buildMetrics(summary, factorVar.factor_var_list) : []),
+    [summary, factorVar],
+  )
   const commonAssetOptions = useMemo(() => {
     const base = [{ value: AGGREGATE_RIC, label: '全資産合算' }]
     if (!summary) {
@@ -234,12 +325,21 @@ export default function DashboardPage() {
     setActiveTab('dashboard')
   }, [])
 
-  const handleDateChange = useCallback((date: string) => {
-    setSelectedDate(date)
-  }, [])
+  const handleDateChange = useCallback(
+    (date: string) => {
+      setSelectedDate(date)
+      const idx = availableDates.indexOf(date)
+      if (idx >= 0 && idx < availableDates.length - 1) {
+        setComparisonDate(availableDates[idx + 1])
+      } else {
+        setComparisonDate('')
+      }
+    },
+    [availableDates],
+  )
 
   const handleAssetChange = useCallback((asset: string) => {
-    setSelectedRic(asset)
+    setTimeseriesRic(asset)
   }, [])
 
   const handleWindowChange = useCallback((window: number) => {
@@ -303,22 +403,6 @@ export default function DashboardPage() {
     }
   }, [activeTab, pendingSection, summary, timeseries, news, scenarioValues])
 
-  if (!summary) {
-    return (
-      <div className="min-h-screen bg-background text-foreground">
-        <DashboardNavigation sections={DASHBOARD_SECTIONS} onNavigate={handleSectionNavigate} />
-        <div className="lg:pl-80">
-          <AppHeader tabs={TAB_OPTIONS} activeTab={activeTab} onTabChange={handleTabChange} />
-          <main className="mx-auto w-full max-w-[108rem] px-6 py-8 space-y-4">
-            <DashboardMobileNav sections={DASHBOARD_SECTIONS} onNavigate={handleSectionNavigate} />
-            <p className="text-sm text-muted-foreground">データを取得しています...</p>
-            {summaryError && <p className="text-sm text-rose-400">{summaryError}</p>}
-          </main>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen bg-background text-foreground">
       <DashboardNavigation sections={DASHBOARD_SECTIONS} onNavigate={handleSectionNavigate} />
@@ -331,64 +415,84 @@ export default function DashboardPage() {
             <section id="filters" className="scroll-mt-36">
               <FiltersBar
                 dates={availableDates}
-                selectedDate={selectedDate || summary.as_of}
+                selectedDate={selectedDate || summary?.as_of || ''}
                 onDateChange={handleDateChange}
+                comparisonDate={comparisonDate}
+                onComparisonDateChange={setComparisonDate}
+                selectedBranch={selectedBranch}
+                onBranchChange={setSelectedBranch}
               />
             </section>
 
-            <section id="summary" className="scroll-mt-36">
-              <SummaryCards metrics={metrics} />
-            </section>
-
-            <section id="var-comparison" className="scroll-mt-36">
-              <VarContributionChart
-                assets={summary.assets}
-                diversificationEffect={summary.portfolio.diversification_effect}
-                portfolioTotal={summary.portfolio.total}
-              />
-            </section>
-
-            <section id="asset-table" className="scroll-mt-36">
-              <AssetDetailsTable assets={summary.assets} portfolio={summary.portfolio} />
-            </section>
-
-            <section id="market-insights" className="scroll-mt-36">
-              <div className="grid gap-6 lg:grid-cols-3">
-                <div className="lg:col-span-1">
-                  <MarketSignalGauge signal={summary.market_signal} />
-                </div>
-                <div className="lg:col-span-2">
-                  <DriverCommentaryPanel commentary={summary.driver_commentary} />
-                </div>
+            {!summary || !factorVar ? (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">データを取得しています...</p>
+                {summaryError && <p className="text-sm text-rose-400">{summaryError}</p>}
               </div>
-            </section>
+            ) : (
+              <>
+                <section id="summary" className="scroll-mt-36">
+                  <SummaryCards metrics={metrics} />
+                </section>
 
-            <section className="grid gap-6 lg:grid-cols-3" aria-label="時系列とニュース">
-              <div id="timeseries" className="space-y-6 lg:col-span-2 scroll-mt-36">
-                <TimeseriesControls
-                  options={commonAssetOptions}
-                  selectedRic={selectedRic}
-                  windowDays={windowDays}
-                  onAssetChange={handleAssetChange}
-                  onWindowChange={handleWindowChange}
-                />
-                <VarChartCard points={timeseries?.points ?? []} key={selectedRic} />
-                {timeseriesError && <p className="text-xs text-rose-400">{timeseriesError}</p>}
-              </div>
-              <div id="news" className="space-y-6 scroll-mt-36">
-                <NewsPanel items={news} loading={loadingNews} />
-              </div>
-            </section>
+                {/* <section id="var-comparison" className="scroll-mt-36">
+                  <VarContributionChart
+                    assets={summary.assets}
+                    diversificationEffect={summary.portfolio.diversification_effect}
+                    portfolioTotal={summary.portfolio.total}
+                  />
+                </section> */}
 
-            <section id="scenario" className="scroll-mt-36">
-              <ScenarioDistributionChart
-                values={scenarioValues}
-                selectedRic={scenarioRic}
-                onRicChange={(ric) => setScenarioRic(ric)}
-                options={scenarioOptions}
-              />
-              {scenarioError && <p className="mt-1 text-xs text-rose-400">{scenarioError}</p>}
-            </section>
+                <section id="asset-table" className="scroll-mt-36">
+                  <AssetDetailsTable
+                    assets={summary.assets}
+                    factorVarList={factorVar.factor_var_list}
+                  />
+                </section>
+
+                {/* <section id="market-insights" className="scroll-mt-36">
+                  <div className="grid gap-6 lg:grid-cols-3">
+                    <div className="lg:col-span-1">
+                      <MarketSignalGauge signal={summary.market_signal} />
+                    </div>
+                    <div className="lg:col-span-2">
+                      <DriverCommentaryPanel commentary={summary.driver_commentary} />
+                    </div>
+                  </div>
+                </section> */}
+
+                <section className="grid gap-6 lg:grid-cols-3" aria-label="時系列とニュース">
+                  <div id="timeseries" className="space-y-6 lg:col-span-2 scroll-mt-36">
+                    <TimeseriesControls
+                      options={commonAssetOptions}
+                      selectedRic={timeseriesRic}
+                      windowDays={windowDays}
+                      onAssetChange={handleAssetChange}
+                      onWindowChange={handleWindowChange}
+                    />
+                    <VarChartCard
+                      points={timeseriesLoading ? [] : (timeseries?.points ?? [])}
+                      key={timeseriesRic}
+                      loading={timeseriesLoading}
+                    />
+                    {timeseriesError && <p className="text-xs text-rose-400">{timeseriesError}</p>}
+                  </div>
+                  <div id="news" className="space-y-6 scroll-mt-36">
+                    <NewsPanel items={news} loading={loadingNews} />
+                  </div>
+                </section>
+
+                {/* <section id="scenario" className="scroll-mt-36">
+                  <ScenarioDistributionChart
+                    values={scenarioValues}
+                    selectedRic={scenarioRic}
+                    onRicChange={(ric) => setScenarioRic(ric)}
+                    options={scenarioOptions}
+                  />
+                  {scenarioError && <p className="mt-1 text-xs text-rose-400">{scenarioError}</p>}
+                </section> */}
+              </>
+            )}
           </div>
 
           <section

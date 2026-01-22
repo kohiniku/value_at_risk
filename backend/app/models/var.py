@@ -1,6 +1,4 @@
-"""Pydantic models for Value at Risk domain objects."""
 from datetime import date
-from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -26,15 +24,30 @@ class AssetVaR(BaseModel):
     contributions: DriverBreakdown
 
 
+class FactorVaR(BaseModel):
+    """VaR value at factor level."""
+
+    risk_category: str
+    currency: str | None = None
+    risk_factor: str
+    risk_direction: bool
+    var_amount: float | None = None
+    comparison: float | None = None
+
+
+class FactorVarListResponse(BaseModel):
+    """Collection of Factor VaR list."""
+
+    factor_var_list: list[FactorVaR]
+
+
 class PortfolioVaR(BaseModel):
     """Overall portfolio VaR information."""
 
     total: float
     change_amount: float
     change_pct: float
-    diversification_effect: float = Field(
-        ..., description="Difference between sum of asset VaR and portfolio VaR"
-    )
+    diversification_effect: float = Field(..., description="Difference between sum of asset VaR and portfolio VaR")
 
 
 class MarketSignal(BaseModel):
@@ -60,7 +73,7 @@ class VaRSummaryResponse(BaseModel):
 
     as_of: date
     portfolio: PortfolioVaR
-    assets: List[AssetVaR]
+    assets: list[AssetVaR]
     market_signal: MarketSignal
     driver_commentary: DriverCommentary
 
@@ -70,14 +83,14 @@ class VaRTimeSeriesPoint(BaseModel):
 
     date: date
     value: float
-    change: Optional[float] = None
+    change: float | None = None
 
 
 class VaRTimeSeriesResponse(BaseModel):
     """Collection of VaR time series points for charting."""
 
     ric: str
-    points: List[VaRTimeSeriesPoint]
+    points: list[VaRTimeSeriesPoint]
 
 
 class NewsItem(BaseModel):
@@ -87,11 +100,11 @@ class NewsItem(BaseModel):
     headline: str
     published_at: str
     source: str
-    summary: Optional[str] = None
+    summary: str | None = None
 
 
 class ScenarioDistributionResponse(BaseModel):
     """Distribution of scenario P/L values for histogram chart."""
 
     ric: str
-    values: List[float]
+    values: list[float]

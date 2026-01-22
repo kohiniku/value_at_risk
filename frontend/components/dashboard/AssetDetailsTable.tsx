@@ -1,202 +1,343 @@
 import clsx from 'clsx'
-import type { Asset, Portfolio } from '@/types/var'
+import type { Asset, FactorVaR } from '@/types/var'
 import { Card } from '@/components/ui/card'
+
+
+const HUNDRED_MILLION: number = 100000000
 
 interface AssetDetailsTableProps {
   assets: Asset[]
-  portfolio: Portfolio
+  factorVarList: FactorVaR[]
 }
 
-const contributionColumns: {
-  key: keyof Asset['contributions']
-  label: string
-  headerClass: string
-  cellClass: string
-}[] = [
-  {
-    key: 'window_drop',
-    label: '離脱',
-    headerClass: 'bg-rose-500/10 text-black dark:text-white',
-    cellClass: 'bg-rose-500/5',
-  },
-  {
-    key: 'window_add',
-    label: '追加',
-    headerClass: 'bg-sky-500/10 text-black dark:text-white',
-    cellClass: 'bg-sky-500/5',
-  },
-  {
-    key: 'position_change',
-    label: 'ポジション',
-    headerClass: 'bg-amber-500/20 text-black dark:text-white',
-    cellClass: 'bg-amber-500/5',
-  },
-  {
-    key: 'ranking_shift',
-    label: '順位変動',
-    headerClass: 'bg-emerald-500/10 text-black dark:text-white',
-    cellClass: 'bg-emerald-500/5',
-  },
-]
+// const contributionColumns: {
+//   key: keyof Asset['contributions']
+//   label: string
+//   headerClass: string
+//   cellClass: string
+// }[] = [
+//   {
+//     key: 'window_drop',
+//     label: '離脱',
+//     headerClass: 'bg-rose-500/10 text-black dark:text-white',
+//     cellClass: 'bg-rose-500/5',
+//   },
+//   {
+//     key: 'window_add',
+//     label: '追加',
+//     headerClass: 'bg-sky-500/10 text-black dark:text-white',
+//     cellClass: 'bg-sky-500/5',
+//   },
+//   {
+//     key: 'position_change',
+//     label: 'ポジション',
+//     headerClass: 'bg-amber-500/20 text-black dark:text-white',
+//     cellClass: 'bg-amber-500/5',
+//   },
+//   {
+//     key: 'ranking_shift',
+//     label: '順位変動',
+//     headerClass: 'bg-emerald-500/10 text-black dark:text-white',
+//     cellClass: 'bg-emerald-500/5',
+//   },
+// ]
 
-const categoryOrder: { key: string; label: string }[] = [
-  { key: '株式', label: '株式' },
-  { key: '金利', label: '金利' },
-  { key: 'クレジット', label: 'クレジット' },
-  { key: 'モーゲージ', label: '不動産（モーゲージ）' },
-  { key: 'コモディティ', label: 'コモディティ' },
-]
 
-export function AssetDetailsTable({ assets, portfolio }: AssetDetailsTableProps) {
-  const groupedAssets = categoryOrder
-    .map((category) => ({
-      ...category,
-      items: assets
-        .filter((asset) => asset.category === category.key)
-        .sort((a, b) => b.amount - a.amount),
-    }))
-    .filter((group) => group.items.length > 0)
-  const assetMax = assets.length ? Math.max(...assets.map((asset) => asset.amount)) : 0
-  const maxAmount = Math.max(assetMax, portfolio.total, 1)
-  const totalContributions = contributionColumns.reduce(
-    (acc, column) => ({
-      ...acc,
-      [column.key]: assets.reduce((sum, asset) => sum + asset.contributions[column.key], 0),
-    }),
-    {} as Asset['contributions'],
-  )
-  const totalRow = {
-    amount: portfolio.total,
-    change_amount: portfolio.change_amount,
-    change_pct: portfolio.change_pct,
-    contributions: totalContributions,
+export function AssetDetailsTable({ assets, factorVarList }: AssetDetailsTableProps) {
+  type TransformedData = {
+    [riskCategory: string]: {
+      [currency: string]: {
+        [riskFactor: string]: {
+          risk_direction: boolean;
+          amount: number;
+          comparison: number | null;
+        };
+      };
+    };
+  };
+
+  type FlattenedItem = {
+    riskCategory: string;
+    currency: string;
+    riskFactor: string;
+    riskDirection: boolean;
+    amount: number;
+    comparison: number | null;
+    isFirstInCategory: boolean;
+    isFirstInCurrency: boolean;
+    categoryRowSpan: number;
+    currencyRowSpan: number;
+  };
+
+  const transformData = (input: FactorVaR[]): TransformedData => {
+    return input.reduce((result: TransformedData, item) => {
+      const { risk_category, currency, risk_factor, risk_direction, var_amount, comparison } = item;
+
+      // risk_categoryレベルの初期化
+      if (!result[risk_category]) {
+        result[risk_category] = {};
+      }
+
+      // currencyのキー（nullの場合は"null"という文字列として扱う）
+      const currencyKey = currency ?? "null";
+
+      // currencyレベルの初期化
+      if (!result[risk_category][currencyKey]) {
+        result[risk_category][currencyKey] = {};
+      }
+
+      // risk_factorレベルにデータを格納
+      result[risk_category][currencyKey][risk_factor] = {
+        risk_direction: risk_direction,
+        amount: var_amount / HUNDRED_MILLION,
+        comparison: comparison !== null ? comparison / HUNDRED_MILLION : null
+      };
+
+      return result;
+    }, {});
+  };
+
+  // データをフラット化する関数
+  const flattenTransformedData = (data: TransformedData): FlattenedItem[] => {
+    const flattened: FlattenedItem[] = [];
+
+    Object.entries(data).forEach(([riskCategory, currencies]) => {
+      const categoryItems: FlattenedItem[] = [];
+
+      Object.entries(currencies).forEach(([currency, riskFactors]) => {
+        const currencyItems = Object.entries(riskFactors)
+          .map(([riskFactor, details]) => ({
+            riskCategory,
+            currency,
+            riskFactor,
+            riskDirection: details.risk_direction,
+            amount: details.amount,
+            comparison: details.comparison,
+            isFirstInCategory: false,
+            isFirstInCurrency: false,
+            categoryRowSpan: 0,
+            currencyRowSpan: 0,
+          }))
+          .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+
+        // 最初の行にフラグを立てる
+        if (currencyItems.length > 0) {
+          currencyItems[0].isFirstInCurrency = true;
+          currencyItems[0].currencyRowSpan = currencyItems.length;
+        }
+
+        categoryItems.push(...currencyItems);
+      });
+
+      // 最初の行にフラグを立てる
+      if (categoryItems.length > 0) {
+        categoryItems[0].isFirstInCategory = true;
+        categoryItems[0].categoryRowSpan = categoryItems.length;
+      }
+
+      flattened.push(...categoryItems);
+    });
+
+    return flattened;
+  };
+
+  const transformedData = transformData(factorVarList);
+  const flatData = flattenTransformedData(transformedData);
+
+  // maxAmountの計算（factorVarListも含める）
+  const factorMax = factorVarList.length
+    ? Math.max(...factorVarList.map((item) => Math.abs(item.var_amount) / HUNDRED_MILLION))
+    : 0;
+  const maxAmount = Math.max(factorMax, 1);
+
+  const getHue = (str: string) => {
+    let hash = 0
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash)
+    }
+    return Math.abs(hash) % 360
+  }
+
+  const getRiskDirectionLabel = (category: string, direction: boolean) => {
+    if (category === '全体') {
+      return '-'
+    }
+    if (category.includes('金利')) {
+      return direction ? '低下' : '上昇'
+    }
+    if (category.includes('クレジット') || category.includes('為替')) {
+      return direction ? '縮小' : '拡大'
+    }
+    if (category.includes('株') || category.includes('コモディティ') || category.includes('不動産')) {
+      return direction ? '下落' : '上昇'
+    }
+  }
+
+  const getRiskDirectionColor = (category: string, direction: boolean) => {
+    // 上昇・拡大・増加 -> Green (emerald-400)
+    // 下落・縮小・低下・減少 -> Red (rose-400)
+
+    if (category === '全体') {
+      return 'text-muted-foreground'
+    }
+
+    if (category.includes('金利')) {
+      // True: 低下 (Red), False: 上昇 (Green)
+      return direction ? 'text-rose-400' : 'text-emerald-400'
+    }
+    if (category.includes('クレジット') || category.includes('為替')) {
+      // True: 縮小 (Red), False: 拡大 (Green)
+      return direction ? 'text-rose-400' : 'text-emerald-400'
+    }
+    if (category.includes('株') || category.includes('コモディティ') || category.includes('不動産')) {
+      // True: 下落 (Red), False: 上昇 (Green)
+      return direction ? 'text-rose-400' : 'text-emerald-400'
+    }
   }
 
   return (
-    <Card title="資産別VaR / 前日比 / 変動要因">
+    <Card title="リスクファクター別VaR">
       <div className="overflow-x-auto">
         <table className="min-w-full table-fixed divide-y divide-border/60 text-sm">
           <thead className="bg-background/80 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="w-24 px-3 py-3 text-left">分類</th>
-              <th className="w-48 px-3 py-3 text-left">資産</th>
-              <th className="w-20 px-3 py-3 text-right">VaR (億円)</th>
-              <th className="w-[28rem] px-4 py-3 text-left">VaR (億円)比較バー</th>
-              <th className="w-20 px-3 py-3 text-right">前日比</th>
-              {contributionColumns.map((column) => (
-                <th
-                  key={column.key}
-                  className={clsx('px-2 py-3 text-right text-xs font-semibold', column.headerClass)}
-                >
-                  {column.label}
-                </th>
-              ))}
+              <th className="w-32 px-3 py-3 text-left">リスク分類</th>
+              <th className="w-24 px-3 py-3 text-left">通貨</th>
+              <th className="w-48 px-3 py-3 text-left">リスクファクター</th>
+              <th className="w-24 px-3 py-3 text-center">リスクの方向性</th>
+              <th className="w-24 px-3 py-3 text-right">VaR (億円)</th>
+              <th className="w-[28rem] px-4 py-3 text-left">VaR比較バー</th>
+              <th className="w-24 px-3 py-3 text-right">比較日からの<br/>増減 (億円)</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/40">
-            <tr className="align-middle bg-muted/10 font-semibold">
-              <td className="w-32 px-4 py-3 text-muted-foreground">全体</td>
-              <td className="w-56 px-4 py-3">全資産合算</td>
-              <td className="w-24 px-4 py-3 text-right text-primary">{totalRow.amount.toFixed(2)}</td>
-              <td className="w-[24rem] px-4 py-3">
-                <VarLevelBar amount={totalRow.amount} maxAmount={maxAmount} />
-              </td>
-              <td
-                className={clsx(
-                  'w-24 px-4 py-3 text-right font-medium',
-                  totalRow.change_amount >= 0 ? 'text-emerald-400' : 'text-rose-400',
-                )}
-              >
-                {totalRow.change_amount >= 0 ? '+' : ''}
-                {totalRow.change_amount.toFixed(2)} ({totalRow.change_pct >= 0 ? '+' : ''}
-                {totalRow.change_pct.toFixed(1)}%)
-              </td>
-              {contributionColumns.map((column) => {
-                const value = totalRow.contributions[column.key]
-                return (
-                  <td
-                    key={column.key}
-                    className={clsx(
-                      'px-2 py-3 text-right font-medium tabular-nums',
-                      column.cellClass,
-                      value >= 0 ? 'text-emerald-400' : 'text-rose-400',
-                    )}
-                  >
-                    {value >= 0 ? '+' : ''}
-                    {value.toFixed(2)}
-                  </td>
-                )
-              })}
-            </tr>
-            {groupedAssets.map((group) =>
-              group.items.map((asset, index) => (
-                <tr key={asset.ric} className="align-middle">
-                  {index === 0 && (
+            {/* リスクファクター別の行 */}
+            {flatData.map((item) => {
+              const hue = getHue(`${item.riskCategory}-${item.currency}`)
+              return (
+                <tr
+                  key={`${item.riskCategory}-${item.currency}-${item.riskFactor}`}
+                  className="align-middle hover:bg-muted/5"
+                >
+                  {/* リスク分類の列（カテゴリの最初の行のみ表示） */}
+                  {item.isFirstInCategory && (
                     <td
-                      className="w-24 px-3 py-3 font-semibold text-muted-foreground"
-                      rowSpan={group.items.length}
+                      className="w-32 px-3 py-3 font-bold text-foreground bg-muted/20"
+                      rowSpan={item.categoryRowSpan}
                     >
-                      {group.label}
+                      {item.riskCategory}
                     </td>
                   )}
-                  <td className="w-48 px-3 py-3 font-medium">{asset.name}</td>
-                  <td className="w-20 px-3 py-3 text-right font-semibold text-primary">
-                    {asset.amount.toFixed(2)}
+
+                  {/* 通貨の列（通貨グループの最初の行のみ表示） */}
+                  {item.isFirstInCurrency && (
+                    <td
+                      className="w-24 px-3 py-3 font-semibold text-muted-foreground"
+                      rowSpan={item.currencyRowSpan}
+                    >
+                      {item.currency === 'null' ? '-' : item.currency}
+                    </td>
+                  )}
+
+                  {/* リスクファクターの列 */}
+                  <td className="w-48 px-3 py-3 font-medium">
+                    {item.riskFactor}
                   </td>
-                  <td className="w-[28rem] px-4 py-3">
-                    <VarLevelBar amount={asset.amount} maxAmount={maxAmount} />
-                  </td>
+
+                  {/* リスク方向性の列 */}
                   <td
                     className={clsx(
-                      'w-20 px-3 py-3 text-right font-medium',
-                      asset.change_amount >= 0 ? 'text-emerald-400' : 'text-rose-400',
+                      'w-24 px-3 py-3 text-center font-medium text-xs',
+                      getRiskDirectionColor(item.riskCategory, item.riskDirection)
                     )}
                   >
-                    {asset.change_amount >= 0 ? '+' : ''}
-                    {asset.change_amount.toFixed(2)} ({asset.change_pct >= 0 ? '+' : ''}
-                    {asset.change_pct.toFixed(1)}%)
+                    {getRiskDirectionLabel(item.riskCategory, item.riskDirection)}
                   </td>
-                  {contributionColumns.map((column) => {
-                    const value = asset.contributions[column.key]
-                    return (
-                      <td
-                        key={column.key}
-                        className={clsx(
-                          'px-2 py-3 text-right font-medium tabular-nums',
-                          column.cellClass,
-                          value >= 0 ? 'text-emerald-400' : 'text-rose-400',
-                        )}
-                      >
-                        {value >= 0 ? '+' : ''}
-                        {value.toFixed(2)}
-                      </td>
-                    )
-                  })}
+
+                  {/* VaR金額の列 */}
+                  <td className="w-24 px-3 py-3 text-right font-semibold text-primary">
+                    {item.amount.toLocaleString('ja-JP', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    })}
+                  </td>
+
+                  {/* VarLevelBarの列 */}
+                  <td className="w-[28rem] px-4 py-3">
+                    <VarLevelBar
+                      amount={Math.abs(item.amount)}
+                      comparison={item.comparison !== null ? Math.abs(item.comparison) : undefined}
+                      maxAmount={maxAmount}
+                      hue={hue}
+                    />
+                  </td>
+
+                  {/* 増減の列 */}
+                  <td
+                    className={clsx(
+                      'w-24 px-3 py-3 text-right font-medium',
+                      (() => {
+                        if (item.comparison === null) return 'text-muted-foreground'
+                        const diff = item.amount - item.comparison
+                        if (diff > 0) return 'text-emerald-400'
+                        if (diff < 0) return 'text-rose-400'
+                        return 'text-muted-foreground'
+                      })()
+                    )}
+                  >
+                    {item.comparison !== null
+                      ? (item.amount - item.comparison).toLocaleString('ja-JP', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                          signDisplay: 'exceptZero'
+                        })
+                      : '-'}
+                  </td>
                 </tr>
-              )),
-            )}
+              )
+            })}
           </tbody>
         </table>
       </div>
     </Card>
-  )
+  );
 }
 
-function VarLevelBar({ amount, maxAmount }: { amount: number; maxAmount: number }) {
+function VarLevelBar({ amount, comparison, maxAmount, hue }: { amount: number; comparison?: number; maxAmount: number; hue?: number }) {
   if (maxAmount === 0) {
     return <div className="text-xs text-muted-foreground">データなし</div>
   }
 
   const normalized = Math.min(1, Math.max(0, amount / maxAmount))
-  const ratio = normalized > 0 ? Math.pow(normalized, 0.5) : 0
-  const clamped = Math.max(0.08, ratio)
+  const ratio = normalized
+  
+  const comparisonRatio = comparison !== undefined ? Math.min(1, Math.max(0, comparison / maxAmount)) : undefined
 
   return (
-    <div className="relative h-2 w-full overflow-hidden rounded-full bg-border/60">
-      <div
-        className="absolute inset-y-0 left-0 rounded-full bg-sky-400"
-        style={{ width: `${clamped * 100}%` }}
-      />
+    <div className="flex flex-col w-full gap-1 justify-center">
+      <div className="relative h-2 w-full overflow-hidden rounded-full bg-border/60">
+        <div
+          className={clsx(
+            'absolute inset-y-0 left-0 rounded-full',
+            hue === undefined && 'bg-sky-400',
+          )}
+          style={{
+            width: `${ratio * 100}%`,
+            backgroundColor: hue !== undefined ? `hsl(${hue}, 70%, 50%)` : undefined,
+          }}
+        />
+      </div>
+      {comparisonRatio !== undefined && (
+        <div className="relative h-1.5 w-full rounded-full bg-border/30">
+          <div
+            className="absolute inset-y-0 left-0 rounded-full bg-slate-400"
+            style={{
+              width: `${comparisonRatio * 100}%`,
+            }}
+          />
+        </div>
+      )}
     </div>
   )
 }
+

@@ -1,15 +1,13 @@
-"""Application settings and configuration helpers."""
 from functools import lru_cache
-from typing import Annotated, List, Optional
+from typing import Annotated
 
 from pydantic import BeforeValidator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+CorsOrigins = Annotated[list[str], BeforeValidator(lambda value: _split_cors(value))]
 
-CorsOrigins = Annotated[List[str], BeforeValidator(lambda value: _split_cors(value))]
 
-
-def _split_cors(value: List[str] | str) -> List[str]:
+def _split_cors(value: list[str] | str) -> list[str]:
     if isinstance(value, str):
         return [origin.strip() for origin in value.split(",") if origin.strip()]
     return value
@@ -23,9 +21,15 @@ class Settings(BaseSettings):
     app_name: str = "Value at Risk API"
     api_v1_str: str = "/api/v1"
     cors_origins: CorsOrigins = ["http://localhost:3000", "http://localhost:3100"]
-    proxy_url: Optional[str] = None
-    no_proxy: Optional[str] = None
+    proxy_url: str | None = None
+    no_proxy: str | None = None
     database_url: str = "sqlite:///./var_demo.db"
+
+    pgdb_url: str = "100.66.149.33"
+    pgdb_port: str = "5432"
+    pgdb_user: str = "postgres"
+    pgdb_password: str = "var"
+    pgdb_database: str = "postgres"
 
 
 @lru_cache

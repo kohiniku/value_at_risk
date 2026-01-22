@@ -1,12 +1,10 @@
-"""Database initialisation and demo seed data."""
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 from math import sin
 from random import Random
-from typing import Any
+from typing import Any, TypedDict, cast
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..core.constants import PORTFOLIO_AGGREGATE_RIC, SCENARIO_WINDOW
@@ -22,7 +20,16 @@ from .models import (
 )
 from .session import SessionLocal, engine
 
-ASSET_DEFINITIONS = [
+
+class AssetDefinition(TypedDict):
+    ric: str
+    name: str
+    category: str
+    base_amount: float
+    volatility: float
+
+
+ASSET_DEFINITIONS: list[AssetDefinition] = [
     {"ric": "JP_EQ_LARGE", "name": "日本株式（大型）", "category": "株式", "base_amount": 10.8, "volatility": 0.35},
     {"ric": "JP_EQ_MID", "name": "日本株式（中型）", "category": "株式", "base_amount": 6.2, "volatility": 0.28},
     {"ric": "US_EQ_TECH", "name": "米国株式（テック）", "category": "株式", "base_amount": 9.4, "volatility": 0.45},
@@ -53,7 +60,7 @@ CONTRIBUTION_PROFILES = {
     "コモディティ": {"window_drop": 0.25, "window_add": 0.20, "position_change": 0.25, "ranking_shift": 0.30},
 }
 
-SNAPSHOT_DAYS = 5
+SNAPSHOT_DAYS = 300
 
 DRIVER_LABELS = {
     "window_drop": "離脱要因",
@@ -147,6 +154,7 @@ def seed_demo_data(session: Session) -> None:
         asset_records: list[AssetVaRRecord] = []
         sum_amount = 0.0
         for idx, definition in enumerate(ASSET_DEFINITIONS):
+            definition = cast(AssetDefinition, definition)
             drift = sin((as_of.toordinal() + idx * 13) / 5) * definition["volatility"]
             amount = round(definition["base_amount"] + drift, 2)
             prev_amount = prev_amounts.get(definition["ric"], amount)
@@ -218,12 +226,12 @@ def seed_demo_data(session: Session) -> None:
 def _build_contributions(category: str, change_amount: float) -> dict[str, float]:
     profile = CONTRIBUTION_PROFILES.get(category, CONTRIBUTION_PROFILES["株式"])
     if change_amount == 0:
-        return {key: 0.0 for key in profile}
+        return dict.fromkeys(profile, 0.0)
     return {key: round(change_amount * weight, 3) for key, weight in profile.items()}
 
 
 def _aggregate_driver_totals(records: list[AssetVaRRecord]) -> dict[str, float]:
-    totals = {key: 0.0 for key in DRIVER_LABELS}
+    totals = dict.fromkeys(DRIVER_LABELS, 0.0)
     for record in records:
         totals["window_drop"] += record.window_drop_contribution
         totals["window_add"] += record.window_add_contribution
@@ -252,10 +260,7 @@ def _seed_market_signals(session: Session, contexts: list[dict[str, Any]]) -> No
         score = max(5.0, min(95.0, round(raw_score, 1)))
         label = _derive_signal_label(score)
         resilience = "底堅さ" if score >= 55 else "警戒感"
-        narrative = (
-            f"{leading_category}の{leading_asset}がリスクを牽引。"
-            f"分散効果{diversification_effect:+.2f}億円が{resilience}を示唆。"
-        )
+        narrative = f"{leading_category}の{leading_asset}がリスクを牽引。分散効果{diversification_effect:+.2f}億円が{resilience}を示唆。"
         records.append(
             MarketSignalRecord(
                 as_of=as_of,
@@ -327,10 +332,7 @@ def _build_commentary_sections(
         angle = news_entry.get("angle", "")
         if angle and not angle.endswith("。"):
             angle = f"{angle}。"
-        news_summary = (
-            f"{news_entry['headline']}（{news_entry['source']}）。"
-            f"{angle or '外部環境がVaRシグナルに直結。'}"
-        )
+        news_summary = f"{news_entry['headline']}（{news_entry['source']}）。{angle or '外部環境がVaRシグナルに直結。'}"
     else:
         news_summary = "当日は特筆すべき外部ヘッドラインがなく、内部要因がVaRを主導。"
     return (technical_summary, news_summary)
@@ -367,9 +369,10 @@ def _seed_news(session: Session, as_of_dates: list[date]) -> dict[date, list[dic
 
 def _seed_timeseries(session: Session, today: date) -> None:
     offsets = list(range(120, -1, -1))
-    portfolio_buckets = {offset: 0.0 for offset in offsets}
+    portfolio_buckets = dict.fromkeys(offsets, 0.0)
 
     for definition in ASSET_DEFINITIONS:
+        definition = cast(AssetDefinition, definition)
         points: list[VaRTimeSeriesRecord] = []
         base = definition["base_amount"]
         for offset in offsets:
@@ -415,9 +418,8 @@ def _seed_scenario_distribution(session: Session) -> None:
     records: list[ScenarioDistributionRecord] = []
 
     for definition in ASSET_DEFINITIONS:
-        generator = rng_cache.setdefault(
-            definition["ric"], Random(sum(ord(ch) for ch in definition["ric"]))
-        )
+        definition = cast(AssetDefinition, definition)
+        generator = rng_cache.setdefault(definition["ric"], Random(sum(ord(ch) for ch in definition["ric"])))
         values = _build_scenario_series(definition["base_amount"], definition["volatility"], generator)
         for idx, value in enumerate(values):
             records.append(
